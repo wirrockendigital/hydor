@@ -181,6 +181,11 @@ const main = async () => {
   assert.equal(await updateOwn('gemini', gemini, '0.66.0', '0.67.0', bad, true), null);
   assert.match((await updateOwn('gemini', gemini, '0.66.0', '0.67.0', bad, false))?.error ?? '', /update it the way you installed it/);
 
+  // Include a second managed agent so error aggregation does not depend on the host's installed tools.
+  const managedGemini = path.join(config.dataDir, 'clients', 'node_modules', PACKAGES.gemini.pkg);
+  fs.mkdirSync(managedGemini, { recursive: true });
+  fs.writeFileSync(path.join(managedGemini, 'package.json'), JSON.stringify({ version: '0.66.0' }));
+
   // Check now (and a run by itself with Update automatically off) only looks: nothing is installed.
   const asked: string[] = [];
   lookup.newest = async (cmd) => (asked.push(cmd), cmd === 'codex' ? '999.0.0' : null);
@@ -215,6 +220,7 @@ const main = async () => {
   startClientUpdates('check');
   await wait();
   assert.match(clientUpdates().error ?? '', /Codex: E404/, 'else each program’s');
+  assert.match(clientUpdates().error ?? '', /Gemini CLI: ETIMEDOUT/, 'the second program keeps its own error');
   assert.deepEqual(updated, [], 'nothing changed, so nothing restarted');
 
   db.close();
