@@ -16,7 +16,7 @@ import { words } from '../memory/store.ts';
 import * as vec from '../memory/vectors.ts';
 import { setSessionExtra } from '../sessionExtra.ts';
 import { createSpace, deleteSpace, updateSpace } from '../spaces/index.ts';
-import { fileText, fillVectors, filesUnder, passages, progress, scanSoon } from './indexer.ts';
+import { fileText, fillSoon, fillVectors, filesUnder, passages, progress, scanSoon } from './indexer.ts';
 import { basesFor } from './scope.ts';
 import { searchKnowledge } from './search.ts';
 import { addSource, baseRow, baseRows, baseView, createBase, deleteBase, docsOf, filesDir } from './store.ts';
@@ -259,6 +259,15 @@ test('reading again: a changed file is read anew, a deleted one leaves, one that
   assert.equal((db.prepare('select count(*) as n from kb_vectors').get() as { n: number }).n, 0);
   assert.equal(knowledgeInstructions(db), null);
   assert.ok(fs.existsSync(folder), 'the folder itself stays');
+});
+
+test('scheduled vector work tolerates a closed database', async () => {
+  // A caller can close its database before the deferred indexing timer fires.
+  const closed = openDb(path.join(tmp, 'closed.db'));
+  fillSoon(closed, 10);
+  closed.close();
+  assert.equal(await fillVectors(closed), 0);
+  await new Promise((resolve) => setTimeout(resolve, 30));
 });
 
 for (const [name, fn] of tests) {

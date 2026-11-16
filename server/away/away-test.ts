@@ -323,7 +323,8 @@ await ok('routes: the summary, a visit going on, and Mark all as seen (the sessi
   // The real clock now: the seeded world is in the past, so give it a visit that ended an hour ago, before it all.
   const real = Date.now();
   const shift = real - NOW;
-  db.prepare('update app_sessions set ended_at = ended_at + ?, done_at = done_at + ?').run(shift, shift);
+  // Preserve relative read times when translating the fixture to the real clock.
+  db.prepare('update app_sessions set ended_at = ended_at + ?, done_at = done_at + ?, seen_at = seen_at + ?').run(shift, shift, shift);
   db.prepare('update task_runs set ended_at = ended_at + ?').run(shift);
   db.prepare('update app_runs set ended_at = ended_at + ?').run(shift);
   db.prepare('update tasks set next_at = next_at + ?').run(shift);

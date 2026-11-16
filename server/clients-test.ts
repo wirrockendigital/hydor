@@ -18,7 +18,8 @@ if (!config.dataDir.startsWith('/tmp/')) {
   process.exit(2);
 }
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hydor-clients-test-'));
+// Resolve the temporary root so macOS /tmp aliases do not change path comparisons.
+const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'hydor-clients-test-')));
 const db = openDb(path.join(tmp, 'test.db'));
 const updated: string[][] = [];
 watchClients(db, (ids) => updated.push(ids));
@@ -163,7 +164,8 @@ const main = async () => {
   assert.deepEqual(it, { id: 'claude', name: 'Claude Code', yours: undefined, from: '1.1.1', to: '1.2.0', ok: true });
   assert.equal(bad['claude:yours'], undefined);
   assert.equal(JSON.parse(kvGet(db, 'clients.pin') ?? 'null'), null, 'no version kept any more');
-  assert.notEqual(config.claudeBin, before);
+  // The verified updater's command remains active even when no Claude is on PATH.
+  assert.equal(config.claudeBin, link);
 
   // One so broken it no longer says its version: undone too.
   script(path.join(dir, 'versions', '1.3.0'), 'echo "Segmentation fault" >&2; exit 139');
