@@ -26814,5 +26814,14 @@
   "wiki articles when a task needs them.": "άρθρα wiki όταν τα χρειάζεται μια εργασία.",
   "{0} passages": "{0} αποσπάσματα",
   "Another session (“{0}”) is at work in the same folder: wait for it to finish, then try again.": "Μια άλλη συνεδρία («{0}») εργάζεται στον ίδιο φάκελο: περιμένετε να ολοκληρωθεί και δοκιμάστε ξανά.",
-  "The files could not be saved before putting them back: try again in a moment": "Δεν ήταν δυνατή η αποθήκευση των αρχείων πριν από την επαναφορά τους: δοκιμάστε ξανά σε λίγο"
-}
+  "The files could not be saved before putting them back: try again in a moment": "Δεν ήταν δυνατή η αποθήκευση των αρχείων πριν από την επαναφορά τους: δοκιμάστε ξανά σε λίγο",
+  "A grey line in an empty box after a turn, taken with Tab": "Μια γκρι γραμμή στο κενό πλαίσιο μετά από μια απάντηση, που γίνεται δεκτή με Tab",
+  "After a turn the model that answered writes one sentence you might send next. It is shown grey in an empty message box: Tab takes it as text, Escape leaves it. Nothing is sent, and a confidential session gets none.": "Μετά από μια απάντηση, το μοντέλο που απάντησε γράφει μία πρόταση που ίσως στείλεις στη συνέχεια. Εμφανίζεται γκρι σε κενό πλαίσιο μηνύματος: το Tab την εισάγει ως κείμενο, το Escape την αφήνει. Τίποτα δεν αποστέλλεται και μια εμπιστευτική συνεδρία δεν λαμβάνει πρόταση.",
+  "Ignore this suggestion": "Παράβλεψη αυτής της πρότασης",
+  "Insert the suggested message, written by {0}": "Εισαγωγή του προτεινόμενου μηνύματος, γραμμένου από {0}",
+  "Insert this suggestion (written by {0})": "Εισαγωγή αυτής της πρότασης (γραμμένης από {0})",
+  "Suggest the next message": "Πρόταση επόμενου μηνύματος",
+  "suggestion next message follow up ghost grey tab compose prompt after turn": "πρόταση επόμενου μηνύματος συνέχεια γκρι tab πεδίο σύνταξης μετά απάντηση",
+  "The model that writes a suggestion when the one that answered cannot be asked on its own (Claude Code, Codex, another ACP agent)": "Το μοντέλο που γράφει μια πρόταση όταν το μοντέλο που απάντησε δεν μπορεί να ερωτηθεί μόνο του (Claude Code, Codex, άλλος ACP agent)",
+  "The suggestion's fallback": "Εναλλακτικό μοντέλο για προτάσεις",
+  "When the session's model cannot suggest": "Όταν το μοντέλο της συνεδρίας δεν μπορεί να προτείνει"}

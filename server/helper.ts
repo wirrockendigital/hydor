@@ -9,7 +9,7 @@ import { HttpError } from './auth.ts';
 import { kvGet, kvSet, type DB } from './db.ts';
 import { AGENT_FILE } from './models/config.ts';
 import type { ModelManager } from './models/manager.ts';
-import { oneShot, oneShotAsked, signedOutOf } from './oneshot.ts';
+import { oneShotAsked, signedOutOf } from './oneshot.ts';
 import { costOf } from './prices.ts';
 import { accountLabel, backgroundDone, needSignIn } from './signin.ts';
 import { ACCOUNT_AGENT_NAMES } from '../shared/grok.ts';

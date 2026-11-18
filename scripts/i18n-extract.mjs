@@ -342,6 +342,8 @@ const NO_WORDS = new Set([
   'shared/answer-ui/text.ts',
   // A message on its way, its files listed as the server lists them (split off again before it shows).
   'web/src/lib/outgoing.ts',
+  // The question that asks a model for a suggestion of the next message: written for the model, never shown in the app.
+  'server/answers/prompt-next.ts',
 ]);
 for (const f of [...files(path.join(ROOT, 'web/src'), /\.(tsx|ts)$/), ...files(path.join(ROOT, 'shared'), /\.ts$/)]) {
   if (f.includes(`${path.sep}i18n${path.sep}`) || NO_WORDS.has(path.relative(ROOT, f).split(path.sep).join('/'))) continue;

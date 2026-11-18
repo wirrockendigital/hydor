@@ -58,6 +58,7 @@ export function GeneralSettings() {
             />
           }
         />
+        <PromptSuggestionsSetting />
         <AutoResumeSetting />
         <DeleteInactiveSetting />
         <SessionLimitsSetting />
@@ -538,6 +539,37 @@ function KeepAwakeSetting() {
             { value: 'never', label: 'Never', hint: 'The computer sleeps as its own settings say' },
           ]}
         />
+      }
+    />
+  );
+}
+
+/** A suggestion of your next message, grey in an empty box after a turn (server/answers/prompt-next.ts). Kept on the server. */
+function PromptSuggestionsSetting() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    api<{ on: boolean }>('/api/prompt-suggestions/settings')
+      .then((r) => setOn(r.on))
+      .catch(() => setOn(false));
+  }, []);
+  return (
+    <Row
+      label="Suggest the next message"
+      hint="A grey line in an empty box after a turn, taken with Tab"
+      info="After a turn the model that answered writes one sentence you might send next. It is shown grey in an empty message box: Tab takes it as text, Escape leaves it. Nothing is sent, and a confidential session gets none."
+      control={
+        on === null ? (
+          <Throbber className="text-fg-3" />
+        ) : (
+          <Switch
+            on={on}
+            label="Suggest the next message"
+            onChange={(v) => {
+              setOn(v);
+              put('/api/prompt-suggestions/settings', { on: v }).catch((e) => (setOn(!v), toastError(e)));
+            }}
+          />
+        )
       }
     />
   );

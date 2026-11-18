@@ -22,6 +22,7 @@ Du musst nicht wissen, wo eine Option liegt: Gib in der Suche (Strg+K, auf dem M
 - [**Textgröße**](/settings?s=general&find=Text%20size): Wie groß Nachrichten, Hilfeseiten und das Eingabefeld auf diesem Gerät dargestellt werden: Standard, groß oder größer.
 - [**Senden, während ein Agent arbeitet**](/settings?s=general&find=Sending%20while%20an%20agent%20works): Enter sendet in den laufenden Durchgang oder reiht die Nachricht bis zu dessen Ende ein.
 - [**Terminalvorschläge**](/settings?s=general&find=Terminal%20suggestions): Graue Vervollständigungen nach dem Cursor in Terminals.
+- [**Nächste Nachricht vorschlagen**](/settings?s=general&find=Suggest%20the%20next%20message): Eine graue Zeile im leeren Feld nach einer Antwort, mit Tab übernommen.
 - [**Nach dem Zurücksetzen von Nutzungslimits fortsetzen**](/settings?s=general&find=Resume%20after%20usage%20limits): Setzt eine Sitzung eine Minute nach dem Zurücksetzen des Limits eines Plans fort.
 - [**Inaktive Sitzungen löschen**](/settings?s=general&find=Delete%20inactive%20sessions): Löscht Sitzungen, die ein Jahr lang oder für den von dir gewählten Zeitraum nicht verwendet wurden. Bis dahin bleibt jede Unterhaltung erhalten.
 - [**Jede Sitzung begrenzen**](/settings?s=general&find=Limit%20each%20session): Maximaler Arbeitsspeicher und CPU-Umfang für Programme einer Sitzung.

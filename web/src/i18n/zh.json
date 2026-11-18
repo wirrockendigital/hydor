@@ -26811,5 +26811,14 @@
   "wiki articles when a task needs them.": "篇 Wiki 文章。",
   "{0} passages": "{0} 个段落",
   "Another session (“{0}”) is at work in the same folder: wait for it to finish, then try again.": "另一个会话（“{0}”）正在同一个文件夹中工作：请等它完成后再试一次。",
-  "The files could not be saved before putting them back: try again in a moment": "放回之前无法保存这些文件：请稍后再试"
-}
+  "The files could not be saved before putting them back: try again in a moment": "放回之前无法保存这些文件：请稍后再试",
+  "A grey line in an empty box after a turn, taken with Tab": "一次回答后，空输入框中的灰色一行，用 Tab 采纳",
+  "After a turn the model that answered writes one sentence you might send next. It is shown grey in an empty message box: Tab takes it as text, Escape leaves it. Nothing is sent, and a confidential session gets none.": "一次回答后，回答的模型会写一句你接下来可能发送的话。它在空消息框中以灰色显示：Tab 会将其作为文本采纳，Esc 则忽略。不会发送任何内容，保密会话不会得到建议。",
+  "Ignore this suggestion": "忽略此建议",
+  "Insert the suggested message, written by {0}": "插入建议的消息，由 {0} 撰写",
+  "Insert this suggestion (written by {0})": "插入此建议（由 {0} 撰写）",
+  "Suggest the next message": "建议下一条消息",
+  "suggestion next message follow up ghost grey tab compose prompt after turn": "建议 下一条消息 后续 灰色 Tab 输入框 提示 回答之后",
+  "The model that writes a suggestion when the one that answered cannot be asked on its own (Claude Code, Codex, another ACP agent)": "当回答的模型无法单独询问时，撰写建议的模型（Claude Code、Codex 或其他 ACP 代理）",
+  "The suggestion's fallback": "建议的备用模型",
+  "When the session's model cannot suggest": "当会话的模型无法建议时"}

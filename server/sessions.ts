@@ -62,7 +62,6 @@ import { recordEnding } from './away/index.ts';
 import { ancestorsOf, isRunningStatus, queueGoesOn, runningBelow, runningChildren, workStatus } from './children/family.ts';
 import { childReplyOf } from '../shared/children.ts';
 import type { NextPrompt } from '../shared/types.ts';
-import { isConfidential } from '../shared/confidential.ts';
 import { conversationLines, cutContext as cutPromptContext, dropSuggestion, keepSuggestion, promptNext, takeSuggestion } from './answers/prompt-next.ts';
 import { userLang } from './language/index.ts';
 import { localHelper } from './helper.ts';
