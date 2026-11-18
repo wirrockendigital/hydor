@@ -68,7 +68,8 @@ function manager(opts: { adapter?: ReturnType<typeof fakeAdapter>; free?: { id: 
     onLimited: () => {},
     resumeLookup: undefined as undefined | ((k: string) => number | undefined),
     external: { get: () => null },
-    // What watchStatus would otherwise run for real.
+    // What watchStatus would otherwise run for real: a suggestion is never asked for in a test of the moves.
+    askPromptSuggestion: () => {},
     notify: () => {},
     keepEnding: () => {},
     heldDone: new Map<string, number>(),

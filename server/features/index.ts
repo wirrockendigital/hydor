@@ -1,5 +1,6 @@
 // Every capability of the app, in the order they register.
 import { answers } from '../answers/index.ts';
+import { promptNext } from '../answers/prompt-next-feature.ts';
 import { apps } from '../apps/index.ts';
 import { arena } from '../arena/index.ts';
 import { assistants } from '../assistants/index.ts';
@@ -69,4 +70,4 @@ import { slack } from '../chatapps/slack.ts';
 
 // The user's guidelines lead what an agent is told, their profile right after them, then what a confidential session
 // may not do; how to format replies follows the pages it may show instead.
-export const FEATURES: Feature[] = [guidelines, profile, confidential, browserHandoff, pages, myThemesFeature, slidesShow, formatting, answers, shots, search, browser, computer, memory, knowledge, wikiSettingsFeature, wikiSession, wiki, wikiBrowse, wikiDigest, spaces, sharing, children, swarm, goals, research, opinion, commits, budget, documents, fileAsk, pdfNotes, images, plots, pictureTools, photos, write, media, mediaEdit, videoEdit, soundEdit, connections, outbox, mail, signatures, automations, experiments, voice, assistants, apps, papers, plugins, skillpack, cleanup, custom, arena, language, guide, keep, find, releaseNotes, sidebar, tips, telegram, discord, slack];
+export const FEATURES: Feature[] = [guidelines, profile, confidential, browserHandoff, pages, myThemesFeature, slidesShow, formatting, answers, promptNext, shots, search, browser, computer, memory, knowledge, wikiSettingsFeature, wikiSession, wiki, wikiBrowse, wikiDigest, spaces, sharing, children, swarm, goals, research, opinion, commits, budget, documents, fileAsk, pdfNotes, images, plots, pictureTools, photos, write, media, mediaEdit, videoEdit, soundEdit, connections, outbox, mail, signatures, automations, experiments, voice, assistants, apps, papers, plugins, skillpack, cleanup, custom, arena, language, guide, keep, find, releaseNotes, sidebar, tips, telegram, discord, slack];

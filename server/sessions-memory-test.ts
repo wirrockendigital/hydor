@@ -88,6 +88,9 @@ function manager() {
   const m: any = Object.create(proto);
   Object.assign(m, {
     db,
+    // A suggestion of the next message is kept per session in its own maps; the manager has them, a stand-in needs them too.
+    suggestRuns: new Map(),
+    suggestStops: new Map(),
     lives: new Map(),
     statuses: new Map(),
     releasing: new Set(),
