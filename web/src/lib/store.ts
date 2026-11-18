@@ -432,6 +432,25 @@ export const useAppSettings = create<{
   set: (p) => set(p),
 }));
 
+/** A suggestion of the user's next message for one session's box (server/answers/prompt-next.ts): shown grey, never sent, never stored. */
+export const useSuggestion = create<{
+  byKey: Record<string, { text: string; via: string } | null>;
+  set: (key: string, suggestion: { text: string; via: string } | null) => void;
+  load: (key: string) => Promise<void>;
+}>((set, get) => ({
+  byKey: {},
+  set: (key, suggestion) => set((s) => ({ byKey: { ...s.byKey, [key]: suggestion } })),
+  load: async (key) => {
+    if (get().byKey[key] !== undefined) return;
+    try {
+      const r = await api<{ suggestion: { text: string; via: string } | null }>(`/api/sessions/${enc(key)}/prompt-suggestion`);
+      set((s) => ({ byKey: { ...s.byKey, [key]: r.suggestion } }));
+    } catch {
+      set((s) => ({ byKey: { ...s.byKey, [key]: null } }));
+    }
+  },
+}));
+
 /** Used up: not readable, at a limit, or a window full (as the server judges it before switching). */
 export const usedUp = (u: AgentUsage | null | undefined) => !u?.ok || !!u.limited || u.windows.some((w) => (w.usedPercent ?? 0) >= 100);
 
@@ -646,6 +665,9 @@ export function handleEvent(e: ServerEvent) {
       if (cur && (cur.live?.status !== shown?.status || tasks(cur.live) !== tasks(shown))) useSessions.getState().upsert([{ ...cur, live: e.live, external: e.live ? null : cur.external }]);
       break;
     }
+    case 'suggest':
+      useSuggestion.getState().set(e.key, e.suggestion);
+      break;
     case 'usage':
       useUsage.getState().set({ claude: e.claude, codex: e.codex, grok: e.grok, accounts: e.accounts });
       break;
