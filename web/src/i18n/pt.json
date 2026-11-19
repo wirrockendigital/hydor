@@ -24956,5 +24956,14 @@
   "wiki articles when a task needs them.": "artigos da wiki quando uma tarefa precisa deles.",
   "{0} passages": "{0} trechos",
   "Another session (“{0}”) is at work in the same folder: wait for it to finish, then try again.": "Outra sessão (“{0}”) está trabalhando na mesma pasta: espere até que ela termine e tente novamente.",
-  "The files could not be saved before putting them back: try again in a moment": "Não foi possível salvar os arquivos antes de restaurá-los: tente novamente em instantes"
-}
+  "The files could not be saved before putting them back: try again in a moment": "Não foi possível salvar os arquivos antes de restaurá-los: tente novamente em instantes",
+  "A grey line in an empty box after a turn, taken with Tab": "Uma linha cinza no campo vazio após uma resposta, aceita com Tab",
+  "After a turn the model that answered writes one sentence you might send next. It is shown grey in an empty message box: Tab takes it as text, Escape leaves it. Nothing is sent, and a confidential session gets none.": "Após uma resposta, o modelo que respondeu escreve uma frase que você poderia enviar em seguida. Ela aparece em cinza no campo de mensagem vazio: Tab a insere como texto, Esc a descarta. Nada é enviado e uma sessão confidencial não recebe nenhuma.",
+  "Ignore this suggestion": "Ignorar esta sugestão",
+  "Insert the suggested message, written by {0}": "Inserir a mensagem sugerida, escrita por {0}",
+  "Insert this suggestion (written by {0})": "Inserir esta sugestão (escrita por {0})",
+  "Suggest the next message": "Sugerir a próxima mensagem",
+  "suggestion next message follow up ghost grey tab compose prompt after turn": "sugestão próxima mensagem acompanhamento cinza tab campo após resposta",
+  "The model that writes a suggestion when the one that answered cannot be asked on its own (Claude Code, Codex, another ACP agent)": "O modelo que escreve uma sugestão quando o que respondeu não pode ser consultado sozinho (Claude Code, Codex ou outro agente ACP)",
+  "The suggestion's fallback": "Alternativa para as sugestões",
+  "When the session's model cannot suggest": "Quando o modelo da sessão não pode sugerir"}

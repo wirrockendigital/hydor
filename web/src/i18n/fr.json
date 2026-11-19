@@ -24955,5 +24955,14 @@
   "wiki articles when a task needs them.": "articles du wiki quand une tâche l’exige.",
   "{0} passages": "{0} passages",
   "Another session (“{0}”) is at work in the same folder: wait for it to finish, then try again.": "Une autre session (« {0} ») travaille dans le même dossier : attendez qu’elle ait terminé, puis réessayez.",
-  "The files could not be saved before putting them back: try again in a moment": "Les fichiers n’ont pas pu être enregistrés avant leur remise en place : réessayez dans un instant."
-}
+  "The files could not be saved before putting them back: try again in a moment": "Les fichiers n’ont pas pu être enregistrés avant leur remise en place : réessayez dans un instant.",
+  "A grey line in an empty box after a turn, taken with Tab": "Une ligne grise dans le champ vide après une réponse, reprise avec Tab",
+  "After a turn the model that answered writes one sentence you might send next. It is shown grey in an empty message box: Tab takes it as text, Escape leaves it. Nothing is sent, and a confidential session gets none.": "Après une réponse, le modèle qui a répondu écrit une phrase que vous pourriez envoyer ensuite. Elle apparaît en gris dans le champ de message vide : Tab la reprend comme texte, Échap l'écarte. Rien n'est envoyé et une session confidentielle n'en reçoit aucune.",
+  "Ignore this suggestion": "Ignorer cette suggestion",
+  "Insert the suggested message, written by {0}": "Insérer le message suggéré, écrit par {0}",
+  "Insert this suggestion (written by {0})": "Insérer cette suggestion (écrite par {0})",
+  "Suggest the next message": "Suggérer le message suivant",
+  "suggestion next message follow up ghost grey tab compose prompt after turn": "suggestion message suivant suivi gris tab champ après réponse",
+  "The model that writes a suggestion when the one that answered cannot be asked on its own (Claude Code, Codex, another ACP agent)": "Le modèle qui écrit une suggestion lorsque celui qui a répondu ne peut pas être interrogé seul (Claude Code, Codex ou un autre agent ACP)",
+  "The suggestion's fallback": "Recours pour les suggestions",
+  "When the session's model cannot suggest": "Quand le modèle de la session ne peut pas suggérer"}

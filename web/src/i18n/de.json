@@ -25592,5 +25592,14 @@
   "wiki articles when a task needs them.": "Wiki-Artikel, wenn eine Aufgabe sie braucht.",
   "{0} passages": "{0} Passagen",
   "Another session (“{0}”) is at work in the same folder: wait for it to finish, then try again.": "Eine andere Sitzung („{0}“) arbeitet im selben Ordner: Warte, bis sie fertig ist, und versuche es dann erneut.",
-  "The files could not be saved before putting them back: try again in a moment": "Die Dateien konnten nicht gespeichert werden, bevor sie zurückgelegt wurden: Versuche es in einem Moment erneut."
-}
+  "The files could not be saved before putting them back: try again in a moment": "Die Dateien konnten nicht gespeichert werden, bevor sie zurückgelegt wurden: Versuche es in einem Moment erneut.",
+  "A grey line in an empty box after a turn, taken with Tab": "Eine graue Zeile im leeren Feld nach einer Antwort, mit Tab übernommen",
+  "After a turn the model that answered writes one sentence you might send next. It is shown grey in an empty message box: Tab takes it as text, Escape leaves it. Nothing is sent, and a confidential session gets none.": "Nach einer Antwort schreibt das antwortende Modell einen Satz, den du als Nächstes senden könntest. Er erscheint grau im leeren Eingabefeld: Tab übernimmt ihn als Text, Escape lässt ihn weg. Nichts wird gesendet, und eine vertrauliche Sitzung bekommt keinen.",
+  "Ignore this suggestion": "Diesen Vorschlag ignorieren",
+  "Insert the suggested message, written by {0}": "Den vorgeschlagenen Text einsetzen, geschrieben von {0}",
+  "Insert this suggestion (written by {0})": "Diesen Vorschlag einsetzen (geschrieben von {0})",
+  "Suggest the next message": "Nächste Nachricht vorschlagen",
+  "suggestion next message follow up ghost grey tab compose prompt after turn": "vorschlag nächste nachricht nachfolger geisterzeile grau tab eingabefeld nach antwort",
+  "The model that writes a suggestion when the one that answered cannot be asked on its own (Claude Code, Codex, another ACP agent)": "Das Modell, das einen Vorschlag schreibt, wenn das antwortende Modell nicht allein gefragt werden kann (Claude Code, Codex, ein anderer ACP-Agent)",
+  "The suggestion's fallback": "Fallback für Vorschläge",
+  "When the session's model cannot suggest": "Wenn das Modell der Sitzung nicht vorschlagen kann"}

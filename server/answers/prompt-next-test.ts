@@ -128,6 +128,16 @@ test('a session that is not on (suggestions off) gets nothing, whatever the mode
   setPromptNextForTests(null);
 });
 
+
+test('a model that thinks first still has room for the sentence: the answer is asked with 800 tokens, not 120', async () => {
+  // The bug this guards: at 120 tokens a reasoning model spent them all thinking and the sentence came back empty.
+  // The test runs from dist/dev: the source is beside this file's own path in the checkout.
+  const src = fs.readFileSync(path.join(import.meta.dirname, '..', '..', 'server', 'answers', 'prompt-next.ts'), 'utf8');
+  const m = /const MAX_TOKENS = (\d+);/.exec(src);
+  assert.ok(m, 'the token limit is set');
+  assert.ok(Number(m[1]) >= 400, `room to think and to answer (${m[1]} tokens)`);
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

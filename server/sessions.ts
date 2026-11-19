@@ -773,8 +773,10 @@ export class SessionManager extends EventEmitter {
    * for the session's box. Silent: a session that cannot have one (confidential, suggestions off, no model left) simply
    * gets none, and a failure never reaches the conversation.
    */
-  private askPromptSuggestion(key: string, idle: boolean) {
-    if (!idle || this.gates.has(key) || this.queues.get(key)?.length) return;
+  private askPromptSuggestion(key: string, st: string) {
+    // Only a turn that finished properly: an error is not a turn to continue from, and a running one is not over.
+    if (st === 'error' || st === 'working' || st === 'waiting') return;
+    if (this.gates.has(key) || this.queues.get(key)?.length) return;
     const s = this.summary(key);
     if (!s || s.external || s.archived) return;
     const extra = s.extra ?? sessionExtra(this.db, key);
@@ -841,7 +843,7 @@ export class SessionManager extends EventEmitter {
           const t = { key: s.key, agent: s.agent, cwd: s.cwd, status: st, startedAt: ended, endedAt: now, external: false };
           setTimeout(() => turnEnded(t), 1500);
           // A suggestion of the next message is asked for once the turn is over (server/answers/prompt-next.ts), never while it runs.
-          this.askPromptSuggestion(s.key, st === 'idle');
+          this.askPromptSuggestion(s.key, st);
           setTimeout(() => this.keepEnding(s.key, s.agent, st, now), 2000);
           const hit = this.limitHits.delete(s.key);
           if (hit) this.limitEnds.set(s.key, now);
@@ -900,6 +902,7 @@ export class SessionManager extends EventEmitter {
         // How it ended, for the start page's "While you were away", once its last lines are in too.
         setTimeout(() => this.keepEnding(s.key, s.agent, st, now, s.live?.error), 2000);
       }
+      if ((st === 'idle' || st === 'error') && busy(prev.status)) this.askPromptSuggestion(s.key, st);
       if (st === 'idle' && busy(prev.status) && now - prev.turnStart >= 10_000) {
         this.db
           .prepare('insert into app_sessions (key, agent, done_at, created_at, updated_at) values (?, ?, ?, ?, ?) on conflict(key) do update set done_at = excluded.done_at')

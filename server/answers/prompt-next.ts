@@ -19,8 +19,8 @@ import { userLang } from '../language/index.ts';
 
 /** How long a suggestion may take before the box does without it. */
 const TIMEOUT_MS = 20_000;
-/** How many tokens the answer may have at most: one sentence. */
-const MAX_TOKENS = 120;
+/** How many tokens the answer may have at most: one sentence, with room to think first (a reasoning model spends its tokens thinking and leaves nothing for the sentence at 120). */
+const MAX_TOKENS = 800;
 /** How much conversation the question is given, in characters (the newest messages first, so a long session loses its start). */
 const CONTEXT_CHARS = 6000;
 /** How long a suggestion is kept for the box to pick up: it is only good for the turn it belongs to. */
@@ -167,7 +167,11 @@ async function askCustom(m: AgentModel, a: PromptNextAsk): Promise<PromptNextAns
   return { text: usable(r.text) ?? '', via: m.label };
 }
 
-/** Who writes it: the session's own model when it is one of Custom's, else the fallback's (or the helper model). */
+/**
+ * Who writes it: the session's own model when it is one of Custom's, else the fallback's (or the helper model).
+ * A model of a Claude or ChatGPT plan (`claude/…`, `codex/…`) is never asked here: only the app's own session
+ * process may reach those, so a suggestion goes to a Custom model or to the helper model instead.
+ */
 async function askModel(db: DB, a: PromptNextAsk): Promise<PromptNextAnswer> {
   const fallback = promptFallback(db);
   // The session's own model first, but only a Custom one: Claude Code's and Codex's models belong to their programs.
@@ -194,6 +198,7 @@ export async function promptNext(db: DB, a: PromptNextAsk): Promise<PromptNextAn
     const out = standIn ? await standIn(db, asked) : await askModel(db, asked);
     return out?.text ? out : null;
   } catch {
+    // A model that is not there, a refusal or a timeout: the box simply stays empty, never the conversation.
     return null;
   }
 }
