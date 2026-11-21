@@ -1029,11 +1029,21 @@ export type ServerEvent =
   | { t: 'toast'; level: 'info' | 'error'; text: string }
   | { t: 'kernel'; id: string; e: KernelOp }
   | { t: 'notify'; n: NotifyEvent }
+  /** A suggestion of the user's next message for a session's box (server/answers/prompt-next.ts): shown grey, never sent. */
+  | { t: 'suggest'; key: string; suggestion: NextPrompt | null }
   | { t: 'machines' }
   | { t: 'tasks' }
   | { t: 'themes'; themes: AppTheme[] };
 
 export type ClientEvent = { t: 'sub'; key: string } | { t: 'unsub'; key: string } | { t: 'ping' };
+
+/** A suggestion of what the user might write next, as the composer shows it grey in an empty box: never a message, never kept. */
+export interface NextPrompt {
+  /** The sentence to offer, from the user's point of view. */
+  text: string;
+  /** Who wrote it, as the app names that model: the chat's own model, or the helper model that stood in. */
+  via: string;
+}
 
 // ---- notebooks ----------------------------------------------------------------------
 

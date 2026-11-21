@@ -134,6 +134,11 @@ row('general', 'Terminal suggestions', 'device', {
   device: { key: 'suggestions', terminal: true },
   note: 'Here it is the terminal chat’s grey suggestions from your earlier messages; the app keeps its own for its terminals in each browser.',
 });
+row('general', 'Next message suggestions', 'switch', {
+  read: rd('/api/prompt-suggestions/settings', 'on'),
+  write: put('/api/prompt-suggestions/settings', (v) => ({ on: v })),
+  note: 'Off until you turn it on: then the app offers one grey line for your next message after a turn, written by the helper model, and turning it on agrees to send the conversation to that model. It is never sent as a message, and a confidential session gets one only from a model on this computer.',
+});
 row('general', 'Resume after usage limits', 'switch', { read: rd('/api/app-settings', 'autoResume'), write: put('/api/app-settings', (v) => ({ autoResume: v })) });
 row('general', 'Delete inactive sessions', 'choice', {
   choices: [

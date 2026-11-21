@@ -24,6 +24,20 @@ export interface OneShot {
   timeoutMs?: number;
   /** Stops the call (its program ends): an app's run stopped while its step asks. */
   signal?: AbortSignal;
+  /**
+   * Codex alone: do not read `$CODEX_HOME/config.toml` (its plugins, skills, MCP servers and hooks), and use this
+   * `CODEX_HOME` for the call instead of the usual one. The sign-in still comes from the environment's own home, so an
+   * added account is used as it is; a caller that wants a scratch home copies `auth.json` into it first.
+   */
+  ignoreUserConfig?: boolean;
+  /**
+   * Codex alone: the `CODEX_HOME` for the call. A home of its own keeps the call's SQLite files, caches and plugin
+   * syncs out of the user's; it needs the sign-in to be reachable there (a copy of `auth.json`), and the sign-in
+   * still comes from the caller's environment.
+   */
+  codexHome?: string;
+  /** Claude Code alone: also skip hooks, plugins, skills and the CLAUDE.md discovery (`--bare`). */
+  bare?: boolean;
 }
 
 type Env = Record<string, string>;
@@ -159,11 +173,37 @@ async function eachAccount(agent: 'claude' | 'codex', ask: (env: Env) => Promise
 
 const CLAUDE_FLAGS = ['--setting-sources', '', '--strict-mcp-config', '--no-session-persistence', '--disable-slash-commands', '--output-format', 'json'];
 
-export async function askClaude(q: OneShot): Promise<string> {
+/**
+ * Claude Code's arguments for one question: no tools, no setting sources, no MCP servers, no session on disk and no
+ * skills. `bare` goes further (plugins, hooks and CLAUDE.md discovery off too), which a suggestion uses: it is a
+ * question to a program, not a session. Exported for the tests, which check the flags without starting Claude.
+ */
+export function claudeArgs(q: OneShot): { args: string[]; piped: boolean } {
   // --tools takes a list, so another flag must follow it; the prompt goes last, or on stdin when it is long.
   const piped = long(q.prompt);
-  const args = ['-p', '--model', q.model ?? 'haiku', '--tools', '', ...CLAUDE_FLAGS, '--system-prompt', q.system, ...(piped ? [] : [q.prompt])];
+  const args = ['-p', '--model', q.model ?? 'haiku', '--tools', '', ...(q.bare ? ['--bare'] : []), ...CLAUDE_FLAGS, '--system-prompt', q.system, ...(piped ? [] : [q.prompt])];
+  return { args, piped };
+}
+
+export async function askClaude(q: OneShot): Promise<string> {
+  const { args, piped } = claudeArgs(q);
   return eachAccount('claude', async (env) => claudeAnswer(await run(config.claudeBin, args, { timeout: q.timeoutMs ?? 90_000, env, signal: q.signal, input: piped ? q.prompt : undefined })), q.signal);
+}
+
+/**
+ * Codex's arguments for one question: `--ephemeral` (nothing kept in the rollout), read-only, and — with
+ * `ignoreUserConfig` — without the user's `config.toml`, so their plugins, skills, hooks and MCP servers stay out of a
+ * suggestion's call. `codexHome` points the call at a home of its own, keeping its SQLite files and caches out of the
+ * usual one. Exported for the tests, which check the flags without starting Codex.
+ */
+export function codexArgs(q: OneShot, file: string): { args: string[]; question: string; piped: boolean } {
+  const question = `${q.system}\n\n${q.prompt}`;
+  const piped = long(question);
+  // With `ignoreUserConfig` the config's plugin, skill and hook features go too: --ignore-user-config alone keeps their
+  // defaults, and a plugin cache in a fresh home shows that they still sync.
+  const off = q.ignoreUserConfig ? ['-c', 'features.plugins=false', '-c', 'features.hooks=false', '-c', 'mcp_servers={}'] : [];
+  const args = ['exec', '--ephemeral', '--skip-git-repo-check', '-s', 'read-only', ...(q.ignoreUserConfig ? ['--ignore-user-config'] : []), ...off, ...(q.codexModel ? ['-m', q.codexModel] : []), '-c', 'model_reasoning_effort="low"', '-o', file, piped ? '-' : question];
+  return { args, question, piped };
 }
 
 async function askCodex(q: OneShot): Promise<string> {
@@ -173,10 +213,8 @@ async function askCodex(q: OneShot): Promise<string> {
       const file = path.join(os.tmpdir(), `wa-ask-${crypto.randomBytes(6).toString('hex')}.txt`);
       const timeout = Math.max(q.timeoutMs ?? 90_000, 90_000);
       try {
-        // The question, or "-" and the question on stdin when it is long.
-        const question = `${q.system}\n\n${q.prompt}`;
-        const piped = long(question);
-        const r = await run(config.codexBin, ['exec', '--ephemeral', '--skip-git-repo-check', '-s', 'read-only', ...(q.codexModel ? ['-m', q.codexModel] : []), '-c', 'model_reasoning_effort="low"', '-o', file, piped ? '-' : question], { timeout, env, signal: q.signal, input: piped ? question : undefined });
+        const { args, question, piped } = codexArgs(q, file);
+        const r = await run(config.codexBin, args, { timeout, env: q.codexHome ? { ...env, CODEX_HOME: q.codexHome } : env, signal: q.signal, input: piped ? question : undefined });
         const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
         if (r.ok && text.trim()) return text;
         // "ERROR: unexpected status 401 Unauthorized: Missing bearer or basic authentication in header": the last line, in stderr or stdout.
@@ -217,21 +255,29 @@ export class NoModel extends HttpError {
 /** The signed-out accounts a failed call found, when the error says (none for any other error). */
 export const signedOutOf = (e: unknown): SignedOutAccount[] => (e instanceof NoModel ? e.signedOut : []);
 
-/** The model's answer as text. */
-export async function oneShot(q: OneShot): Promise<string> {
+/** Who answered a one-off question: Claude Code or Codex. */
+export type OneShotVia = 'claude' | 'codex';
+
+/** The model's answer as text, and which of the two one-off programs wrote it (the pages must not credit the other). */
+export async function oneShotAsked(q: OneShot): Promise<{ text: string; via: OneShotVia }> {
   let claude: NoAnswer;
   try {
-    return await askClaude(q);
+    return { text: await askClaude(q), via: 'claude' };
   } catch (e) {
     claude = asNoAnswer(e);
   }
   if (q.signal?.aborted) throw new HttpError(409, 'It was stopped');
   try {
-    return await askCodex(q);
+    return { text: await askCodex(q), via: 'codex' };
   } catch (e) {
     const codex = asNoAnswer(e);
     throw new NoModel(`Could not reach a model. Claude Code: ${claude.message.replace(/\.$/, '')}. Codex: ${codex.message.replace(/\.$/, '')}.`, [...claude.signedOutAccounts, ...codex.signedOutAccounts]);
   }
+}
+
+/** The model's answer as text. */
+export async function oneShot(q: OneShot): Promise<string> {
+  return (await oneShotAsked(q)).text;
 }
 
 /** The model's answer as JSON (the first object in it); `what` names it in the error. */

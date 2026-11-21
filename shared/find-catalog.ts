@@ -107,6 +107,7 @@ export const OPTIONS: [string, string, string, string, string?][] = [
   ['general', 'Text size', 'text size font size bigger larger smaller zoom read readability phone eyes accessibility', 'How big messages, Help pages and the box you type in are on this device: default, large or larger'],
   ['general', 'Sending while an agent works', 'enter join turn queue wait steer message', 'Enter joins the running turn, or waits for it to end'],
   ['general', 'Terminal suggestions', 'autocomplete completion shell commands', 'Grey completions after the cursor in terminals'],
+  ['general', 'Next message suggestions', 'suggestion next message follow up ghost grey tab compose prompt after turn off by default opt in consent privacy helper model', 'Optional grey suggestions for your next message after a turn, taken with Tab; off until you turn them on, and a changed model asks again'],
   ['general', 'Resume after usage limits', 'limit reset continue automatically plan', 'Continues a session a minute after a plan’s limit resets'],
   ['general', 'Delete inactive sessions', 'delete old sessions clean up retention history keep conversations inactive year months', 'Deletes sessions nobody used for a year, or as long as you choose; until then every conversation is kept'],
   ['general', 'Limit each session', 'memory cpu processors cores cap limit ram resources cgroup systemd oom heavy session', 'The most memory and processors one session’s programs may use', 'Limit each session'],

@@ -9,7 +9,7 @@ import { HttpError } from './auth.ts';
 import { kvGet, kvSet, type DB } from './db.ts';
 import { AGENT_FILE } from './models/config.ts';
 import type { ModelManager } from './models/manager.ts';
-import { oneShot, signedOutOf } from './oneshot.ts';
+import { oneShotAsked, signedOutOf } from './oneshot.ts';
 import { costOf } from './prices.ts';
 import { accountLabel, backgroundDone, needSignIn } from './signin.ts';
 import { ACCOUNT_AGENT_NAMES } from '../shared/grok.ts';
@@ -194,14 +194,16 @@ function signedOutSentence(accounts: { agent: 'claude' | 'codex'; account?: stri
     : `Your main ${n.program} account is signed out, and no other account or Custom model could do this: sign in again (Settings → Agents → Accounts).`;
 }
 
-/** The helper's answer as text. */
-export async function helper(db: DB, q: HelperAsk): Promise<string> {
+/** The helper's answer as text, and who wrote it ("Claude", "Codex", or the model's own label): the pages show both. */
+export async function helperAsked(db: DB, q: HelperAsk): Promise<{ text: string; via: string }> {
   const id = q.model ?? helperModelId(db);
   const timeout = q.timeoutMs ?? 90_000;
   if (id === 'auto') {
     if (q.images?.length) throw new HttpError(400, 'The helper model cannot see images: pick one that does in Settings → Models');
     try {
-      return await oneShot({ system: q.system, prompt: q.prompt, timeoutMs: timeout, signal: q.signal, ...(q.strong ? { model: 'sonnet' as const } : {}) });
+      // A helper call is a question to a program of its own: no plugins, skills, hooks or user config, nothing left in the usual Codex home.
+      const r = await oneShotAsked({ system: q.system, prompt: q.prompt, timeoutMs: timeout, signal: q.signal, bare: true, ignoreUserConfig: true, ...(q.strong ? { model: 'sonnet' as const } : {}) });
+      return { text: r.text, via: r.via === 'claude' ? 'Claude' : 'Codex' };
     } catch (e) {
       // Neither CLI answered: one of Custom's models needs neither.
       if (!(e instanceof HttpError && e.status === 502) || q.signal?.aborted) throw e;
@@ -210,7 +212,7 @@ export async function helper(db: DB, q: HelperAsk): Promise<string> {
         try {
           const text = await askModel(db, q, m, timeout);
           backgroundDone();
-          return text;
+          return { text, via: m.label };
         } catch (err) {
           if (q.signal?.aborted) throw err;
           said.push(`${m.label}: ${((err as Error).message || 'no answer').replace(/\s+/g, ' ').replace(/\.$/, '').slice(0, 120)}`);
@@ -231,7 +233,12 @@ export async function helper(db: DB, q: HelperAsk): Promise<string> {
   }
   const m = customModels().find((x) => x.id === id);
   if (!m) throw new HttpError(400, 'The helper model is gone: pick another in Settings → Models');
-  return askModel(db, q, m, timeout);
+  return { text: await askModel(db, q, m, timeout), via: m.label };
+}
+
+/** The helper's answer as text. */
+export async function helper(db: DB, q: HelperAsk): Promise<string> {
+  return (await helperAsked(db, q)).text;
 }
 
 /** The helper's answer as JSON (the first object in it); `what` names it in the error. */

@@ -24,7 +24,10 @@ export function HelperModel() {
   const cur = st && (st.options.find((o) => o.value === st.model) ?? st.options[0]);
   const pick = (model: string) => api<HelperState>('/api/helper', { method: 'PUT', body: { model } }).then(setSt).catch(toastError);
   return (
-    <Group title="Helper model" info="The model for the app’s small jobs beside your sessions: writing memory notes, checking steps in Auto mode, second opinions, reading a page for one question.">
+    <Group
+      title="Helper model"
+      info="The model for the app’s small jobs beside your sessions: writing memory notes, checking steps in Auto mode, second opinions, reading a page for one question. It also writes the optional next-message suggestions (Settings → General → Next message suggestions), which are off until you turn them on."
+    >
       <Row
         label="Model"
         hint={

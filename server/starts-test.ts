@@ -152,6 +152,10 @@ test('a Custom process from before the update queues unsupported follow-ups with
     enqueue: (...args: unknown[]) => queued.push(args), touchApp: () => {},
     // send hands the message over under the delivering mark: the stand-in borrows both from the real class.
     handing: proto.handing, sendNow: proto.sendNow,
+    // A message of your own drops what was offered for the last turn; a stand-in here, since no suggestion is kept.
+    suggestRuns: new Map(),
+    suggestStops: new Map(),
+    dropPromptSuggestion: () => {},
   };
   await proto.send.call(m, key, '/follow-up', images, files);
   assert.deepEqual(queued, [[key, '/follow-up', images, files]]);

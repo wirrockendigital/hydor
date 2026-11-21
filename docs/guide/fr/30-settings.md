@@ -22,6 +22,7 @@ Inutile de savoir où se trouve une option : tapez ce que vous voulez dans le c
 - [**Taille du texte**](/settings?s=general&find=Text%20size) : Taille des messages, des pages d’Aide et de la zone de saisie sur cet appareil : par défaut, grande ou plus grande.
 - [**Envoi pendant qu’un agent travaille**](/settings?s=general&find=Sending%20while%20an%20agent%20works) : Entrée rejoint le tour en cours, ou attend qu’il se termine.
 - [**Suggestions du terminal**](/settings?s=general&find=Terminal%20suggestions) : Suggestions grisées après le curseur dans les terminaux.
+- [**Next message suggestions**](/settings?s=general&find=Next%20message%20suggestions) : Optional grey suggestions for your next message after a turn, taken with Tab; off until you turn them on, and a changed model asks again.
 - [**Reprendre après les limites d’utilisation**](/settings?s=general&find=Resume%20after%20usage%20limits) : Reprend une session une minute après la réinitialisation de la limite d’un forfait.
 - [**Supprimer les sessions inactives**](/settings?s=general&find=Delete%20inactive%20sessions) : Supprime les sessions que personne n’a utilisées depuis un an, ou aussi longtemps que vous le choisissez ; d’ici là, toutes les conversations sont conservées.
 - [**Limiter chaque session**](/settings?s=general&find=Limit%20each%20session) : La mémoire et le nombre de processeurs maximum que peuvent utiliser les programmes d’une session.

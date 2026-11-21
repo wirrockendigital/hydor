@@ -81,6 +81,7 @@ import { registerAway } from './away/index.ts';
 import { arenaOf } from '../shared/arena.ts';
 import { startMatch } from './arena/index.ts';
 import { helper, helperOptions, helperSees, setHelperModel, setHelperModels } from './helper.ts';
+import { promptSuggestionSettings, setPromptSuggestionsOn, confirmPromptRecipient, revokePromptConsent } from './answers/prompt-next.ts';
 import { setOneShotAccounts } from './oneshot.ts';
 import { dismissSignIn, initSignIn, markSignedIn, signInNeeds } from './signin.ts';
 import { limitsOf, limitSupport, oomKills, SessionMeter, setLimits, wrapRunner } from './resources.ts';
@@ -1744,6 +1745,8 @@ sessions.on('items', (key: string, items: TimelineItem[], total: number, reset: 
   if (!initial) toSubscribers(key, { t: 'items', key, items: items.map(previewItem), total, reset });
 });
 sessions.on('live', (key: string, live, overlay) => toSubscribers(key, { t: 'live', key, live, overlay }));
+// A suggestion of the next message: only the pages showing that session (it is never kept, never sent).
+sessions.on('suggest', (key: string, suggestion) => toSubscribers(key, { t: 'suggest', key, suggestion }));
 sessions.on('usage', (u) => {
   broadcast({ t: 'usage', ...u });
   scheduler.syncResumes();
@@ -2130,10 +2133,33 @@ app.patch('/api/sessions/:key/extra', async (req) => {
   sessions.queueSummary(key);
   return { extra };
 });
+// The suggestion of the user's next message (server/answers/prompt-next.ts): a grey line in an empty box, never sent.
+app.get('/api/prompt-suggestions/settings', async () => promptSuggestionSettings(db));
+app.put('/api/prompt-suggestions/settings', async (req) => {
+  const b = (req.body ?? {}) as { on?: boolean; confirm?: boolean; model?: string; recipient?: string };
+  if (b.on === true) {
+    if (b.confirm !== true || typeof b.model !== 'string' || typeof b.recipient !== 'string') throw new HttpError(400, 'Confirm the displayed helper model first');
+    confirmPromptRecipient(db, b.model, b.recipient);
+    setPromptSuggestionsOn(db, true);
+  } else if (b.on === false) {
+    setPromptSuggestionsOn(db, false);
+    revokePromptConsent(db);
+    sessions.clearPromptSuggestions();
+  }
+  return promptSuggestionSettings(db);
+});
+app.get('/api/sessions/:key/prompt-suggestion', async (req) => ({ suggestion: sessions.promptSuggestionOf(K(req)) }));
+app.delete('/api/sessions/:key/prompt-suggestion', async (req) => {
+  sessions.dropPromptSuggestion(K(req));
+  return { ok: true };
+});
+
 // The helper model: small jobs outside sessions (memory notes, Auto mode's checks, second opinions).
 app.get('/api/helper', async () => helperOptions(db));
 app.put('/api/helper', async (req) => {
   setHelperModel(db, String((req.body as { model?: string } | undefined)?.model ?? 'auto'));
+  revokePromptConsent(db);
+  sessions.clearPromptSuggestions();
   return helperOptions(db);
 });
 // The browser's time zone, so agents and schedules speak in local time.

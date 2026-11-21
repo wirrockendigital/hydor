@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowRightLeft, ArrowUp, ChevronDown, MonitorUp, Paperclip, Plus, SlidersHorizontal, Square, X } from 'lucide-react';
-import type { Agent, SessionSummary } from '@shared/types';
+import type { Agent, NextPrompt, SessionSummary } from '@shared/types';
 import { childReplyOf } from '@shared/children';
 import { isConfidential } from '@shared/confidential';
 import { goalMessageOf } from '@shared/goals';
@@ -9,7 +9,7 @@ import { enc, lostOnTheWay, post } from '../../lib/api';
 import { warmMemory } from '../../lib/starting';
 import { openSession } from '../../lib/nav';
 import { LOCALE } from '../../i18n/locale';
-import { stopOverridden, toast, toastError, useApp, useLive, useTimeline } from '../../lib/store';
+import { stopOverridden, toast, toastError, useApp, useLive, useSuggestion, useTimeline } from '../../lib/store';
 import { agentName } from '../../components/AgentIcon';
 import { EffortPicker, modelLabel, ModelPicker, ModePicker, nextMode, useCatalog } from '../../components/AgentPickers';
 import { cx, MenuItem, Popover, SettingLayout, SheetsOnPhone, useConfirm } from '../../components/ui';
@@ -265,6 +265,18 @@ export function Composer({ s, hint }: { s: SessionSummary; hint?: string }) {
     setMove(null);
     setAtts(draftFiles(key));
   }, [key]);
+
+  // A suggestion of the next message, shown grey while the box is empty (server/answers/prompt-next.ts). It is not the
+  // draft: typing replaces it, Tab takes it as text, and a message of your own drops it.
+  const suggestion = useSuggestion((x) => (x.byKey[key] === undefined ? null : x.byKey[key])) ?? null;
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  useEffect(() => {
+    // Another session's box: nothing of what was dismissed there applies here.
+    setDismissed(null);
+    useSuggestion.getState().load(key);
+  }, [key]);
+  // A suggestion the box has taken, or one from an earlier turn: not shown twice.
+  const offered = suggestion && suggestion.text !== dismissed && !text.trim() && !atts.length && !move ? suggestion : null;
 
   useEffect(() => {
     keepDraftText(key, text);
@@ -535,11 +547,46 @@ export function Composer({ s, hint }: { s: SessionSummary; hint?: string }) {
             }}
             className="px-4 pt-4"
           />
+          {offered && (
+            <div
+              id={`suggest-${key}`}
+              className="flex items-start gap-2 px-5 pt-3.5 pb-1 text-[15px] leading-relaxed text-fg-3"
+            >
+              {/* The whole line is the tap target: on a phone there is no Tab to press. */}
+              <button
+                type="button"
+                onClick={() => {
+                  setText(offered.text);
+                  setDismissed(offered.text);
+                  useSuggestion.getState().set(key, null);
+                  ta.current?.focus();
+                }}
+                className="min-w-0 flex-1 text-left hover:text-fg-2"
+                title={`Insert this suggestion (written by ${offered.via})`}
+                aria-label={`Insert the suggested message, written by ${offered.via}`}
+              >
+                {offered.text}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDismissed(offered.text);
+                  useSuggestion.getState().set(key, null);
+                }}
+                className="shrink-0 rounded-full p-2 text-fg-3 hover:text-fg"
+                title="Ignore this suggestion"
+                aria-label="Ignore this suggestion"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
           <textarea
             ref={ta}
             value={text}
             rows={1}
             disabled={locked}
+            aria-describedby={offered ? `suggest-${key}` : undefined}
             autoComplete="off"
             autoCorrect="off"
             data-1p-ignore=""
@@ -588,6 +635,21 @@ export function Composer({ s, hint }: { s: SessionSummary; hint?: string }) {
                     localStorage.removeItem(k);
                   }
                 } catch {}
+                return;
+              }
+              if (e.key === 'Tab' && !e.shiftKey && offered && !menu.open) {
+                // Tab takes the suggestion as text (never sends); Shift+Tab still changes the permissions mode below.
+                e.preventDefault();
+                setText(offered.text);
+                setDismissed(offered.text);
+                useSuggestion.getState().set(key, null);
+                return;
+              }
+              if (e.key === 'Escape' && offered) {
+                // Escape leaves the box as it is and drops the suggestion for this turn.
+                e.preventDefault();
+                setDismissed(offered.text);
+                useSuggestion.getState().set(key, null);
                 return;
               }
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && (!touch || e.metaKey || e.ctrlKey)) {

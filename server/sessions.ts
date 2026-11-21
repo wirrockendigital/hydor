@@ -60,6 +60,13 @@ import { opensTurn } from './opinion/turns.ts';
 import { filesOf, sessionEnd } from '../shared/ending.ts';
 import { recordEnding } from './away/index.ts';
 import { ancestorsOf, isRunningStatus, queueGoesOn, runningBelow, runningChildren, workStatus } from './children/family.ts';
+import { childReplyOf } from '../shared/children.ts';
+import type { NextPrompt } from '../shared/types.ts';
+import { clearSuggestions, conversationLines, cutContext as cutPromptContext, dropSuggestion, keepSuggestion, promptNext, takeSuggestion } from './answers/prompt-next.ts';
+import { userLang } from './language/index.ts';
+import { localHelper, helperModelId } from './helper.ts';
+import { capOf } from './budget/spend.ts';
+import { parentOf } from './children/family.ts';
 import { hubDir, wikiMemoryOn, wikiSpaceOfSession } from './wiki/roots.ts';
 import { sessionMemoryOn } from './memory/store.ts';
 import { sessionCaptureEnabled } from './wiki/session/store.ts';
@@ -213,7 +220,8 @@ function titleOfRow(r: Row, sub: { title?: string } | null): string {
 
 function phaseOf(s: SessionSummary): Phase {
   const l = s.live;
-  if (l && l.status !== 'exited') return l.status === 'error' ? 'error' : l.status === 'waiting' ? 'waiting' : l.status === 'working' ? 'working' : 'idle';
+  // A session still starting is at work like one working: read as idle, its first turn would look over before it began.
+  if (l && l.status !== 'exited') return l.status === 'error' ? 'error' : l.status === 'waiting' ? 'waiting' : l.status === 'working' || l.status === 'starting' ? 'working' : 'idle';
   if (s.external) return s.external.status;
   return 'off';
 }
@@ -752,12 +760,81 @@ export class SessionManager extends EventEmitter {
   private statuses = new Map<string, { status: Phase; turnStart: number }>();
   /** Turns of sessions run here that ended since their status was last looked at, by when each began. */
   private endedTurns = new Map<string, number>();
+  /** Which suggestion is on its way for each session; a newer turn invalidates the older one. */
+  private suggestRuns = new Map<string, number>();
+  private suggestSequence = 0;
+  /** What stops the call a session is waiting on: a new turn, a message of your own, or a closed box. */
+  private suggestStops = new Map<string, AbortController>();
+
+  /** Invalidate pending and displayed suggestions when their permission or recipient changes. */
+  clearPromptSuggestions() {
+    for (const key of this.suggestStops.keys()) this.dropPromptSuggestion(key);
+    for (const key of this.statuses.keys()) this.emit('suggest', key, null);
+    clearSuggestions();
+  }
   /**
    * "Finished" notices held back because the session was still at work when its turn ended (stillAtWork), by key: when
    * the first turn held ended. Each goes out once that work is over: at the end of the next turn, however short (the
    * agent woken by what it waited on), or a moment after the work ended when no turn follows (releaseHeld). In memory only.
    */
   private heldDone = new Map<string, number>();
+
+  /**
+   * Asks for a suggestion of the user's next message after a turn ended (server/answers/prompt-next.ts), and keeps it
+   * for the session's box. Silent: a session that cannot have one (confidential, suggestions off, no model left) simply
+   * gets none, and a failure never reaches the conversation.
+   */
+  private askPromptSuggestion(key: string, st: string) {
+    // Only a turn that finished properly: an error is not a turn to continue from, and a running one is not over.
+    if (st === 'error' || st === 'working' || st === 'waiting') return;
+    if (this.gates.has(key) || this.queues.get(key)?.length) return;
+    const s = this.summary(key);
+    if (!s || s.external || s.archived) return;
+    const extra = s.extra ?? sessionExtra(this.db, key);
+    // A confidential session's words go only to a model on this computer: the local helper when one is picked, else none.
+    const local = isConfidential(extra) ? localHelper(this.db) : null;
+    if (isConfidential(extra) && !local) return;
+    // Suggestion calls are not yet recorded in session spending. Do not bypass a session or parent cap.
+    const parent = parentOf(this.db, key);
+    if (!localHelper(this.db) && (capOf(this.db, key) != null || (parent && capOf(this.db, parent) != null))) return;
+    // A newer turn, a message of your own or a closed box stops the call the session is waiting on.
+    this.suggestStops.get(key)?.abort();
+    const stop = new AbortController();
+    this.suggestStops.set(key, stop);
+    const run = ++this.suggestSequence;
+    this.suggestRuns.set(key, run);
+    void this.promptContext(key)
+      .then(async (c) => {
+        // Another turn began meanwhile (or another suggestion is already on its way): this one is stale.
+        if (this.suggestRuns.get(key) !== run) return;
+        const lang = userLang(this.db);
+        const out = await promptNext(this.db, { context: c.context, lang, model: local ?? c.model, local: !!local, signal: stop.signal });
+        if (!out || this.suggestRuns.get(key) !== run || out.model !== helperModelId(this.db)) return;
+        keepSuggestion({ key, text: out.text, via: out.via, at: Date.now() });
+        this.emit('suggest', key, { key, text: out.text, via: out.via });
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (this.suggestRuns.get(key) === run) {
+          this.suggestRuns.delete(key);
+          this.suggestStops.delete(key);
+        }
+      });
+  }
+
+  /** The suggestion for a session's box when it is fresh (pages that open later get it too), else null. */
+  promptSuggestionOf(key: string): NextPrompt | null {
+    const s = takeSuggestion(key);
+    return s ? { text: s.text, via: s.via } : null;
+  }
+
+  /** Drops what was offered for a session: its turn ended differently, or it is no longer shown. */
+  dropPromptSuggestion(key: string) {
+    this.suggestRuns.delete(key);
+    this.suggestStops.get(key)?.abort();
+    this.suggestStops.delete(key);
+    dropSuggestion(key);
+  }
 
   /**
    * Turns that end (after running a while), sessions that start waiting for an answer or approval, and
@@ -779,6 +856,8 @@ export class SessionManager extends EventEmitter {
         if (ended !== undefined && (st === 'idle' || st === 'error')) {
           const t = { key: s.key, agent: s.agent, cwd: s.cwd, status: st, startedAt: ended, endedAt: now, external: false };
           setTimeout(() => turnEnded(t), 1500);
+          // A suggestion of the next message is asked for once the turn is over (server/answers/prompt-next.ts), never while it runs.
+          this.askPromptSuggestion(s.key, st);
           setTimeout(() => this.keepEnding(s.key, s.agent, st, now), 2000);
           const hit = this.limitHits.delete(s.key);
           if (hit) this.limitEnds.set(s.key, now);
@@ -837,6 +916,7 @@ export class SessionManager extends EventEmitter {
         // How it ended, for the start page's "While you were away", once its last lines are in too.
         setTimeout(() => this.keepEnding(s.key, s.agent, st, now, s.live?.error), 2000);
       }
+      if ((st === 'idle' || st === 'error') && busy(prev.status)) this.askPromptSuggestion(s.key, st);
       if (st === 'idle' && busy(prev.status) && now - prev.turnStart >= 10_000) {
         this.db
           .prepare('insert into app_sessions (key, agent, done_at, created_at, updated_at) values (?, ?, ?, ?, ?) on conflict(key) do update set done_at = excluded.done_at')
@@ -1120,6 +1200,36 @@ export class SessionManager extends EventEmitter {
     return this.transcriptFor(key);
   }
 
+  /**
+   * The conversation as a suggestion's model sees it: the newest messages and the reply before them, in the user's
+   * words, cut to what fits (server/answers/prompt-next.ts). The session's own transcript is read, never sent twice:
+   * what an agent's tool printed is left out, since a next message follows what was said, not a file.
+   */
+  async promptContext(key: string, max = 6000): Promise<{ context: string; model: string | null; local: boolean; confidential: boolean }> {
+    const s = this.summary(key);
+    const live = this.lives.get(key)?.adapter.state;
+    const model = live?.model ?? s?.model ?? null;
+    const extra = s?.extra ?? sessionExtra(this.db, key);
+    const confidential = isConfidential(extra);
+    // A confidential session's own model is on this computer; only a local one may be asked, and only about itself.
+    const local = confidential;
+    let context = '';
+    try {
+      const tl = await this.timeline(key);
+      const said: { kind: 'user' | 'assistant'; text: string }[] = [];
+      const items = tl.parser.items;
+      for (let i = items.length - 1; i >= 0 && said.length < 24; i--) {
+        const it = items[i];
+        if (it.kind === 'user' && !it.meta && !it.peer && !childReplyOf(it.text)) said.unshift({ kind: 'user', text: it.text });
+        else if (it.kind === 'assistant' && it.text.trim()) said.unshift({ kind: 'assistant', text: it.text });
+      }
+      context = cutPromptContext(conversationLines(said), max);
+    } catch {
+      context = '';
+    }
+    return { context, model, local, confidential };
+  }
+
   private transcriptFor(key: string): string | null {
     const live = this.lives.get(key);
     if (live?.adapter.transcriptPath) return live.adapter.transcriptPath;
@@ -1297,7 +1407,8 @@ export class SessionManager extends EventEmitter {
         this.queueSummary(key);
         this.queueAncestors(key);
         // Noted for watchStatus, which looks only now and then and could miss a quick turn.
-        const busy = (x: string) => x === 'working' || x === 'waiting';
+        // 'starting' is a busy phase too: without it, the idle phase after the first turn looks like an idle phase without a preceding turn.
+        const busy = (x: string) => x === 'starting' || x === 'working' || x === 'waiting';
         if (busy(lastStatus) && !busy(was)) turnBegan = Date.now();
         if ((lastStatus === 'idle' || lastStatus === 'error') && busy(was)) this.endedTurns.set(key, turnBegan || Date.now());
         // A turn ended: the next queued message goes out.
@@ -2590,6 +2701,8 @@ export class SessionManager extends EventEmitter {
   async interrupt(key: string) {
     // Waiting for the memory to be built, the agent has nothing running to stop: Stop ends the build and starts the agent.
     if (this.gates.get(key)?.state === 'building') return this.answerGate(key, 'stop');
+    // Stopped by you: what the last turn offered is not what you want to send next.
+    this.dropPromptSuggestion(key);
     this.limitHits.delete(key);
     this.signedOutHits.delete(key);
     this.userStopped.add(key);
@@ -3169,6 +3282,8 @@ export class SessionManager extends EventEmitter {
   async send(key: string, text: string, images: ImageInput[] = [], files: FileInput[] = []): Promise<'queued' | undefined> {
     refuseSubagent(leadsOf(this), key);
     if (!text.trim() && !images.length && !files.length) throw new HttpError(400, 'Empty message');
+    // The box has words of its own now: what was offered for the last turn is stale (and a suggestion is never sent).
+    this.dropPromptSuggestion(key);
     const queued = () => {
       this.enqueue(key, text, images, files);
       return 'queued' as const;
@@ -3265,6 +3380,8 @@ export class SessionManager extends EventEmitter {
       )
       .run(key, agent, cfg.model ?? null, cfg.effort ?? null, cfg.mode ?? null, Date.now(), Date.now(), cfg.model !== undefined ? 1 : 0, cfg.effort !== undefined ? 1 : 0, cfg.mode !== undefined ? 1 : 0);
     this.savePrefs(agent, { model: cfg.model ?? undefined, effort: cfg.effort ?? undefined, mode: cfg.mode ?? undefined });
+    // What was suggested belongs to the model and mode that answered; another model may continue differently.
+    if (cfg.model !== undefined || cfg.mode !== undefined) this.dropPromptSuggestion(key);
     this.queueSummary(key);
   }
 
@@ -3277,6 +3394,8 @@ export class SessionManager extends EventEmitter {
     const l = this.lives.get(key);
     if (l) await l.adapter.configure({ ...(pick.model ? { model: pick.model } : {}), ...(pick.effort ? { effort: pick.effort } : {}) });
     this.db.prepare('update app_sessions set model = coalesce(?, model), effort = coalesce(?, effort) where key = ?').run(pick.model ?? null, pick.effort ?? null, key);
+    // The tiers' model is another one than the last turn's: what was offered for it goes.
+    if (pick.model) this.dropPromptSuggestion(key);
     this.queueSummary(key);
     const s = this.summary(key);
     const data = tierNote(this.db, { agent: agentOfKey(key), acpAgent: s?.acpAgent, event: why.event, tier, model: pick.model ?? l?.adapter.state.model, why: why.why });
