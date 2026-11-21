@@ -220,7 +220,8 @@ function titleOfRow(r: Row, sub: { title?: string } | null): string {
 
 function phaseOf(s: SessionSummary): Phase {
   const l = s.live;
-  if (l && l.status !== 'exited') return l.status === 'error' ? 'error' : l.status === 'waiting' ? 'waiting' : l.status === 'working' ? 'working' : 'idle';
+  // A session still starting is at work like one working: read as idle, its first turn would look over before it began.
+  if (l && l.status !== 'exited') return l.status === 'error' ? 'error' : l.status === 'waiting' ? 'waiting' : l.status === 'working' || l.status === 'starting' ? 'working' : 'idle';
   if (s.external) return s.external.status;
   return 'off';
 }
@@ -1406,7 +1407,8 @@ export class SessionManager extends EventEmitter {
         this.queueSummary(key);
         this.queueAncestors(key);
         // Noted for watchStatus, which looks only now and then and could miss a quick turn.
-        const busy = (x: string) => x === 'working' || x === 'waiting';
+        // 'starting' is a busy phase too: without it, the idle phase after the first turn looks like an idle phase without a preceding turn.
+        const busy = (x: string) => x === 'starting' || x === 'working' || x === 'waiting';
         if (busy(lastStatus) && !busy(was)) turnBegan = Date.now();
         if ((lastStatus === 'idle' || lastStatus === 'error') && busy(was)) this.endedTurns.set(key, turnBegan || Date.now());
         // A turn ended: the next queued message goes out.
