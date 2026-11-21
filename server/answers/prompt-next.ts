@@ -1,17 +1,19 @@
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { chat, type ChatMessage } from '../agent/llm.ts';
 import type { AgentModel } from '../../shared/types.ts';
 import { HttpError } from '../auth.ts';
 import { AGENT_FILE } from '../models/config.ts';
 import type { DB } from '../db.ts';
 import { kvGet, kvSet } from '../db.ts';
-import { helperAsked, helperModelId, helperOptions, localHelper } from '../helper.ts';
+import { helperModelId, helperOptions, localHelper } from '../helper.ts';
 import { userLang } from '../language/index.ts';
 
 /**
- * One short suggestion of the user's next message, written outside any session: the model the session runs on when it
- * can be asked on its own, else the helper model. The pages show it as a grey line in an empty message box; it is never
- * sent and never kept, and the conversation's words are data to it, not instructions.
+ * One short suggestion of the user's next message, written outside any session by the helper model picked in
+ * Settings → Models (Settings → General → Next message suggestions turns the feature on). The pages show it as a grey
+ * line in an empty message box: it is never sent as a message, never written to the conversation, and the
+ * conversation's words are data to it, not instructions.
  *
  * The prompt, the context cut, the cache and the settings live here, so the session manager only calls it at the end of
  * a turn (server/sessions.ts) and the pages only ask for it (server/index.ts: GET /api/sessions/:key/prompt-suggestion).
@@ -26,32 +28,79 @@ const CONTEXT_CHARS = 6000;
 /** How long a suggestion is kept for the box to pick up: it is only good for the turn it belongs to. */
 const KEEP_MS = 10 * 60_000;
 
-/** Suggestions are app-wide (Settings → General), kept as `auto` (the default, with no key kept yet) or `off`. */
 /** The app's languages as a model should be told them, so a suggestion reads naturally. */
 const LANG_NAMES: Record<string, string> = { en: 'English', de: 'German', el: 'Greek', zh: 'Chinese' };
 
 const KEY_ON = 'prompt_suggestions';
-/** The fallback when the session's own model cannot be asked: `auto` (the helper model) or one of Custom's model ids. */
-const KEY_FALLBACK = 'prompt_suggestions_fallback';
+/** Server-owned evidence that the user agreed to send a context excerpt to the selected helper model. */
+const KEY_CONSENT = 'prompt_suggestions_consent';
 
-/** Whether suggestions are on. */
-export const promptSuggestionsOn = (db: DB): boolean => kvGet(db, KEY_ON) !== 'off';
+/** Suggestions are an opt-in feature. An old experimental auto/auto value is not consent and is treated as off. */
+export const promptSuggestionsOn = (db: DB): boolean => kvGet(db, KEY_ON) === 'on';
 
 export function setPromptSuggestionsOn(db: DB, on: boolean) {
-  kvSet(db, KEY_ON, on ? 'auto' : 'off');
+  kvSet(db, KEY_ON, on ? 'on' : 'off');
 }
 
-/** The fallback's id: `auto` for the helper model, else one of Custom's models. */
-export const promptFallback = (db: DB): string => kvGet(db, KEY_FALLBACK) || 'auto';
+/** The selected helper model, or `auto` when none has been picked. Consent is tracked for this exact id. */
+export const promptFallback = (db: DB): string => helperModelId(db);
 
-export function setPromptFallback(db: DB, id: string) {
-  if (id !== 'auto' && !helperOptions(db).options.some((o) => o.value === id)) throw new HttpError(400, 'No such model: add it in Settings → Models first');
-  kvSet(db, KEY_FALLBACK, id);
+/** Whether a helper option runs on this computer: only an explicitly local Custom model counts, never `auto`. */
+function optionIsLocal(db: DB, model: string): boolean {
+  return model !== 'auto' && helperOptions(db).options.some((o) => o.value === model) && !!localHelper(db) && localHelper(db) === model;
 }
 
-/** What Settings → General shows: on or off, the fallback, and the models it may be. */
+/** Stored consent is deliberately bound to the selected model so changing the recipient cannot reuse it. */
+export function promptConsent(db: DB): { model: string; at: number; recipient: string } | null {
+  try {
+    const v = JSON.parse(kvGet(db, KEY_CONSENT) ?? 'null') as { model?: unknown; at?: unknown; recipient?: unknown } | null;
+    return v && typeof v.model === 'string' && typeof v.at === 'number' && typeof v.recipient === 'string' ? { model: v.model, at: v.at, recipient: v.recipient } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Record a deliberate approval for the current helper-model recipient; this is called only by the settings API. */
+function recipientFingerprint(m: AgentModel): string {
+  return createHash('sha256').update(JSON.stringify([m.id, m.provider, m.baseUrl, m.model, !!m.local, m.headers ?? {}])).digest('hex');
+}
+
+function publicEndpoint(value: string): string {
+  try {
+    const url = new URL(value);
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
+export function confirmPromptRecipient(db: DB, model: string, recipient: string): void {
+  const m = customModel(db, model);
+  if (model === 'auto' || model !== promptFallback(db) || !m || recipient !== recipientFingerprint(m)) throw new HttpError(409, 'Select and confirm the current helper model recipient');
+  kvSet(db, KEY_CONSENT, JSON.stringify({ model, recipient, at: Date.now() }));
+}
+
+/** Withdraw consent and stop any future suggestion request until it is given again for the current recipient. */
+export function revokePromptConsent(db: DB): void {
+  kvSet(db, KEY_CONSENT, '');
+}
+
+/** What Settings → General shows: opt-in state, the current helper recipient, and whether it needs a new consent. */
 export function promptSuggestionSettings(db: DB) {
-  return { on: promptSuggestionsOn(db), fallback: promptFallback(db), options: helperOptions(db).options };
+  const model = promptFallback(db);
+  const consent = promptConsent(db);
+  const option = helperOptions(db).options.find((o) => o.value === model);
+  const config = customModel(db, model);
+  const recipient = config ? recipientFingerprint(config) : '';
+  return {
+    on: promptSuggestionsOn(db),
+    consent: !!consent && consent.model === model && consent.recipient === recipient && !!recipient,
+    recipient: { model, label: option?.label ?? (model === 'auto' ? 'Automatic' : model), local: optionIsLocal(db, model), fingerprint: recipient, provider: config?.provider ?? '', endpoint: publicEndpoint(config?.baseUrl ?? '') },
+  };
 }
 
 /** One suggestion as the pages get it. */
@@ -81,10 +130,11 @@ export interface PromptNextAsk {
   onCost?: (usd: number) => void;
 }
 
-/** What a model answered, and who answered. */
+/** What a model answered, who answered, and which local/remote helper recipient produced it. */
 export interface PromptNextAnswer {
   text: string;
   via: string;
+  model: string;
 }
 
 /** The sentence asked of a model: no tools, no memory, no action — only words the user could have typed next. */
@@ -164,23 +214,16 @@ async function askCustom(m: AgentModel, a: PromptNextAsk): Promise<PromptNextAns
     const usd = m.provider === 'ollama' || m.provider === 'vllm' ? 0 : r.usage.cost ?? 0;
     if (typeof usd === 'number' && Number.isFinite(usd)) a.onCost(usd);
   }
-  return { text: usable(r.text) ?? '', via: m.label };
+  return { text: usable(r.text) ?? '', via: m.label, model: m.id };
 }
 
-/**
- * Who writes it: the session's own model when it is one of Custom's, else the fallback's (or the helper model).
- * A model of a Claude or ChatGPT plan (`claude/…`, `codex/…`) is never asked here: only the app's own session
- * process may reach those, so a suggestion goes to a Custom model or to the helper model instead.
- */
+/** Only the explicitly selected helper model can receive the context; automatic fallback is not used. */
 async function askModel(db: DB, a: PromptNextAsk): Promise<PromptNextAnswer> {
-  const fallback = promptFallback(db);
-  // The session's own model first, but only a Custom one: Claude Code's and Codex's models belong to their programs.
-  const own = a.model && !a.local ? customModel(db, a.model) : null;
-  const picked = own ?? (fallback !== 'auto' ? customModel(db, fallback) : null);
+  const model = helperModelId(db);
+  // A confidential session is local-only: its own model is on this computer, and the helper is too (checked before).
+  const picked: AgentModel | null = a.local ? customModel(db, localHelper(db) ?? '') : customModel(db, model);
   if (picked) return askCustom(picked, a);
-  const r = await helperAsked(db, { system: SYSTEM, prompt: prompt(a, a.lang || 'the user’s language'), timeoutMs: TIMEOUT_MS, signal: a.signal, maxTokens: MAX_TOKENS, onCost: a.onCost });
-  // The helper's own words say who answered ("Claude", "Codex", or its model's label): never claim the chat's own model wrote it.
-  return { text: usable(r.text) ?? '', via: r.via };
+  throw new HttpError(400, 'Select a specific helper model');
 }
 
 /** Who writes a suggestion in place of a model: the tests put one here, so they never reach Claude Code, Codex or an API. */
@@ -189,14 +232,22 @@ export const setPromptNextForTests = (f: typeof standIn) => (standIn = f);
 
 /** The suggestion, or null when none fits; a failure never reaches the caller's session. */
 export async function promptNext(db: DB, a: PromptNextAsk): Promise<PromptNextAnswer | null> {
-  if (!promptSuggestionsOn(db)) return null;
-  // A confidential session's words may only go to a model on this computer; without one, no suggestion at all.
-  if (a.local && !localHelper(db)) return null;
+  if (!promptSuggestionsOn(db) || !promptSuggestionSettings(db).consent) return null;
+  const approved = promptConsent(db);
+  // A confidential session is local-only. Resolve the recipient before the stand-in so a cloud value cannot escape.
+  const local = a.local ? localHelper(db) : null;
+  if (a.local && !local) return null;
   const lang = a.lang || LANG_NAMES[userLang(db)] || 'English';
   try {
-    const asked = a.local ? { ...a, lang, model: localHelper(db) } : { ...a, lang };
-    const out = standIn ? await standIn(db, asked) : await askModel(db, asked);
-    return out?.text ? out : null;
+    // The test stand-in answers for whichever model this call would have used, and names it, so a confidential
+    // conversation that came back from a cloud model would be caught here rather than in the app.
+    const out = standIn
+      ? await standIn(db, a.local ? { ...a, lang, model: local } : { ...a, lang })
+      : await askModel(db, a.local ? { ...a, lang, model: local } : { ...a, lang });
+    const current = promptConsent(db);
+    if (!out?.text || a.signal?.aborted || !promptSuggestionsOn(db) || !promptSuggestionSettings(db).consent || current?.recipient !== approved?.recipient || current?.at !== approved?.at) return null;
+    if (a.local && out.model !== local) return null;
+    return out;
   } catch {
     // A model that is not there, a refusal or a timeout: the box simply stays empty, never the conversation.
     return null;

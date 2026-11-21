@@ -1,16 +1,14 @@
-// Script tests for the suggestion of the user's next message (server/answers/prompt-next.ts): the settings' keys and
-// fallbacks, the cut of a long conversation, what counts as a usable answer, and the whole call with a stand-in model
-// (a confidential session gets none, and nothing is kept). Build and run with a scratch data folder:
-//   OUTDIR=dist/dev node scripts/build-server.mjs server/answers/prompt-next-test.ts
-//   DATA_DIR=/tmp/hydor-test-prompt-next node dist/dev/prompt-next-test.js
+// Regression tests for the next-message suggestion: it is opt-in, the server tracks consent,
+// and a confidential session can use only the selected local helper model.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { openDb, kvSet } from '../db.ts';
-import { AGENT_FILE } from '../models/config.ts';
+import { localHelper } from '../helper.ts';
 import {
   clearSuggestions,
+  confirmPromptRecipient,
   cutContext,
   dropSuggestion,
   keepSuggestion,
@@ -18,7 +16,6 @@ import {
   promptNext,
   promptSuggestionsOn,
   promptSuggestionSettings,
-  setPromptFallback,
   setPromptNextForTests,
   setPromptSuggestionsOn,
   takeSuggestion,
@@ -32,110 +29,175 @@ if (!process.env.DATA_DIR?.startsWith('/tmp/')) {
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hydor-prompt-next-'));
 const db = openDb(path.join(tmp, 'test.db'));
+// The models the app's helper picks from are read from the data folder, so a scratch folder of its own keeps the
+// real ones out of the test (config.ts resolves that folder when the server starts).
+fs.mkdirSync(path.join(process.env.DATA_DIR!, 'models'), { recursive: true });
+fs.writeFileSync(path.join(process.env.DATA_DIR!, 'models', 'agent.json'), JSON.stringify({ models: [
+  { id: 'local/model', label: 'Local model', provider: 'openrouter', baseUrl: '', model: 'local', local: true },
+  { id: 'cloud/fallback', label: 'Cloud fallback', provider: 'openrouter', baseUrl: '', model: 'cloud' },
+] }));
 
 const tests: [string, () => void | Promise<void>][] = [];
 const test = (name: string, fn: () => void | Promise<void>) => tests.push([name, fn]);
 
-test('the settings: on by default, off when set, and the fallback is the helper model until one is picked', () => {
-  assert.equal(promptSuggestionsOn(db), true, 'on until someone turns it off');
-  setPromptSuggestionsOn(db, false);
+test('suggestions are off by default and activating alone never calls a model', async () => {
   assert.equal(promptSuggestionsOn(db), false);
-  assert.equal(promptSuggestionSettings(db).on, false, 'the page sees it off');
-  setPromptSuggestionsOn(db, true);
-  assert.equal(promptSuggestionsOn(db), true);
-  assert.equal(promptFallback(db), 'auto');
-  assert.throws(() => setPromptFallback(db, 'openrouter/someone-else'), /No such model/, 'another maker’s model is not one of Custom’s');
-  assert.equal(promptFallback(db), 'auto', 'a refused model changes nothing');
-});
-
-test('the cut keeps the newest messages: a long conversation loses its start, not its end', () => {
-  const messages = ['oldest ' + 'x'.repeat(200), 'a middle one', 'the newest ' + 'y'.repeat(200)];
-  const cut = cutContext(messages, 300);
-  assert.ok(cut.includes('the newest'), 'the newest message is there');
-  assert.ok(!cut.includes('oldest'), 'the oldest is dropped');
-  assert.ok(cut.length <= 300 + 40, 'about as long as asked');
-  assert.equal(cutContext([]), '');
-});
-
-test('only a short, plain sentence is usable: a refusal, the rules or a speech is not a suggestion', () => {
-  assert.equal(usable('Kannst du das bitte prüfen?'), 'Kannst du das bitte prüfen?');
-  assert.equal(usable('"Wie machen wir weiter?"'), 'Wie machen wir weiter?');
-  assert.equal(usable('Next message: Sag mir mehr'), 'Sag mir mehr');
-  assert.equal(usable('SILENT'), '');
-  assert.equal(usable('I cannot suggest a next message here.'), '');
-  assert.equal(usable('  '), '');
-  assert.equal(usable('').valueOf(), '');
-  assert.equal(usable('Eins\nZwei'), 'Eins', 'only the first line counts');
-});
-
-test('what is kept is kept for one session only, and only for a while', () => {
-  clearSuggestions();
-  // An old suggestion is dropped when it is looked at, and a kept one outlives a call: only the age matters.
-  keepSuggestion({ key: 'acp:old', text: 'Alt', via: 'Custom', at: Date.now() - 11 * 60_000 });
-  assert.equal(takeSuggestion('acp:old'), null, 'an old one is not offered');
-  keepSuggestion({ key: 'acp:a', text: 'Mach weiter', via: 'Custom', at: Date.now() });
-  const s = takeSuggestion('acp:a');
-  assert.equal(s?.text, 'Mach weiter');
-  assert.equal(takeSuggestion('acp:a'), null, 'taken once, then gone');
-  keepSuggestion({ key: 'acp:c', text: 'Weg', via: 'Custom', at: Date.now() });
-  dropSuggestion('acp:c');
-  assert.equal(takeSuggestion('acp:c'), null);
-});
-
-test('the whole call: the session’s own model first, the fallback when it has none, and nothing when neither answers', async () => {
-  // A stand-in in place of any model: no program, no API, no key.
-  const asked: { model?: string | null; lang: string; context: string }[] = [];
-  setPromptNextForTests(async (_db, a) => {
-    asked.push({ model: a.model, lang: a.lang, context: a.context });
-    // One sentence when the model is the session's own, none when only the fallback is left.
-    if (a.model === 'openrouter/own:free') return { text: 'Kannst du das prüfen?', via: 'Eigenes Modell' };
-    return null;
-  });
-  const own = await promptNext(db, { context: 'User: Hallo', lang: 'German', model: 'openrouter/own:free' });
-  assert.equal(own?.text, 'Kannst du das prüfen?');
-  assert.equal(own?.via, 'Eigenes Modell', 'the page is told which model wrote it');
-  assert.equal(asked[0]?.lang, 'German', 'the app’s language reaches the model');
-  const none = await promptNext(db, { context: 'User: Hallo', lang: 'German' });
-  assert.equal(none, null, 'a model with nothing to suggest leaves the box empty');
-  // A model that throws is the same as one with nothing: the session never sees an error.
-  setPromptNextForTests(async () => {
-    throw new Error('no model here');
-  });
+  assert.equal(promptSuggestionSettings(db).on, false);
+  let called = 0;
+  setPromptNextForTests(async () => { called++; return { text: 'Nicht erlaubt', via: 'Test', model: 'auto' }; });
   assert.equal(await promptNext(db, { context: 'User: Hallo', lang: 'German' }), null);
-  setPromptNextForTests(null);
-});
-
-test('a confidential session is asked only on a model on this computer, and never on a fallback elsewhere', async () => {
-  // No local helper is picked in this scratch folder: its words stay where they are, so nothing is asked.
-  setPromptNextForTests(async () => ({ text: 'Nicht gefragt', via: 'Nicht gefragt' }));
-  assert.equal(await promptNext(db, { context: 'User: Hallo', lang: 'German', local: true }), null, 'no local helper: no suggestion');
-  // A local model is named for the call, never the helper model's own choice.
-  const asked: (string | null | undefined)[] = [];
-  setPromptNextForTests(async (_db, a) => {
-    asked.push(a.model);
-    return { text: 'Lokal geschrieben', via: 'Lokales Modell' };
-  });
-  assert.equal(await promptNext(db, { context: 'User: Hallo', lang: 'German', model: 'openrouter/elsewhere:free', local: true }), null, 'still none without a local helper');
-  setPromptNextForTests(null);
-});
-
-test('a session that is not on (suggestions off) gets nothing, whatever the model says', async () => {
-  setPromptNextForTests(async () => ({ text: 'Egal was', via: 'Egal' }));
-  setPromptSuggestionsOn(db, false);
-  assert.equal(await promptNext(db, { context: 'User: Hallo', lang: 'German' }), null, 'off beats any model');
+  assert.equal(called, 0, 'no model without consent');
   setPromptSuggestionsOn(db, true);
-  assert.equal((await promptNext(db, { context: 'User: Hallo', lang: 'German' }))?.text, 'Egal was');
+  assert.equal(await promptNext(db, { context: 'User: Hallo', lang: 'German' }), null);
+  assert.equal(called, 0, 'enabling alone is not consent');
+  kvSet(db, 'prompt_suggestions_consent', JSON.stringify({ model: 'auto', at: Date.now() }));
+  assert.equal(await promptNext(db, { context: 'User: Hallo', lang: 'German' }), null, 'automatic cannot identify the recipient');
+  kvSet(db, 'helper.model', 'local/model');
+  confirmPromptRecipient(db, 'local/model', promptSuggestionSettings(db).recipient.fingerprint);
+  assert.equal((await promptNext(db, { context: 'User: Hallo', lang: 'German' }))?.text, 'Nicht erlaubt');
+  assert.equal(called, 1, 'only a stored consent releases a helper call');
   setPromptNextForTests(null);
 });
 
+test('a changed helper model invalidates the previous consent', async () => {
+  kvSet(db, 'prompt_suggestions_consent', '');
+  let asked: (string | null | undefined)[] = [];
+  setPromptNextForTests(async (_db, a) => {
+    const used = a.local ? localHelper(db) : promptFallback(db);
+    asked.push(used);
+    return { text: `Antwort ${asked.length} von ${used ?? 'keinem Modell'}`, via: 'Local model', model: used ?? '' };
+  });
+  kvSet(db, 'helper.model', 'cloud/fallback');
+  setPromptSuggestionsOn(db, true);
+  assert.equal(await promptNext(db, { context: 'User: Hallo', lang: 'German' }), null, 'enabling is not consent');
+  assert.throws(() => confirmPromptRecipient(db, 'local/model', 'stale'));
+  assert.equal(await promptNext(db, { context: 'User: Hallo', lang: 'German' }), null, 'a changed recipient cannot reuse the consent');
+  assert.deepEqual(asked, [], 'and a changed recipient means no call');
+  kvSet(db, 'helper.model', 'local/model');
+  confirmPromptRecipient(db, 'local/model', promptSuggestionSettings(db).recipient.fingerprint);
+  assert.equal((await promptNext(db, { context: 'User: Hallo', lang: 'German' }))?.text, 'Antwort 1 von local/model');
+  assert.deepEqual(asked, ['local/model'], 'the agreed model is the one asked');
+  setPromptNextForTests(null);
+});
 
-test('a model that thinks first still has room for the sentence: the answer is asked with 800 tokens, not 120', async () => {
-  // The bug this guards: at 120 tokens a reasoning model spent them all thinking and the sentence came back empty.
-  // The test runs from dist/dev: the source is beside this file's own path in the checkout.
-  const src = fs.readFileSync(path.join(import.meta.dirname, '..', '..', 'server', 'answers', 'prompt-next.ts'), 'utf8');
-  const m = /const MAX_TOKENS = (\d+);/.exec(src);
-  assert.ok(m, 'the token limit is set');
-  assert.ok(Number(m[1]) >= 400, `room to think and to answer (${m[1]} tokens)`);
+test('a confidential context uses only the local helper, even with a cloud fallback stored', async () => {
+  kvSet(db, 'helper.model', 'local/model');
+  setPromptSuggestionsOn(db, true);
+  confirmPromptRecipient(db, 'local/model', promptSuggestionSettings(db).recipient.fingerprint);
+  let asked: (string | null | undefined)[] = [];
+  setPromptNextForTests(async (_db, a) => {
+    const used = a.local ? localHelper(db) : promptFallback(db);
+    asked.push(used);
+    return { text: 'Lokal geschrieben', via: 'Local model', model: used ?? '' };
+  });
+  assert.equal((await promptNext(db, { context: 'User: Vertraulich', lang: 'German', local: true }))?.text, 'Lokal geschrieben');
+  assert.deepEqual(asked, ['local/model'], 'a confidential context is asked on the local helper alone');
+  kvSet(db, 'helper.model', 'cloud/fallback');
+  confirmPromptRecipient(db, 'cloud/fallback', promptSuggestionSettings(db).recipient.fingerprint);
+  assert.equal(
+    await promptNext(db, { context: 'User: Vertraulich', lang: 'German', local: true }),
+    null,
+    'a cloud fallback never receives a confidential conversation, even with consent for it',
+  );
+  assert.deepEqual(asked, ['local/model'], 'and no second call was made');
+  setPromptNextForTests(null);
+});
+
+test('changing the endpoint with the same id revokes consent and refuses a stale confirmation', async () => {
+  kvSet(db, 'helper.model', 'local/model');
+  const before = promptSuggestionSettings(db).recipient.fingerprint;
+  confirmPromptRecipient(db, 'local/model', before);
+  const file = path.join(process.env.DATA_DIR!, 'models', 'agent.json');
+  const saved = fs.readFileSync(file, 'utf8');
+  try {
+    const config = JSON.parse(saved);
+    config.models[0].baseUrl = 'https://new.example/v1';
+    fs.writeFileSync(file, JSON.stringify(config));
+    assert.equal(promptSuggestionSettings(db).consent, false);
+    assert.throws(() => confirmPromptRecipient(db, 'local/model', before));
+    assert.equal(await promptNext(db, { context: 'User: secret', lang: 'German' }), null);
+  } finally {
+    fs.writeFileSync(file, saved);
+  }
+});
+
+test('a delayed answer is discarded after disabling or aborting the request', async () => {
+  kvSet(db, 'helper.model', 'local/model');
+  setPromptSuggestionsOn(db, true);
+  confirmPromptRecipient(db, 'local/model', promptSuggestionSettings(db).recipient.fingerprint);
+  let release!: () => void;
+  setPromptNextForTests(async () => {
+    await new Promise<void>((resolve) => { release = resolve; });
+    return { text: 'Too late', via: 'Local model', model: 'local/model' };
+  });
+  const controller = new AbortController();
+  const pending = promptNext(db, { context: 'User: Hallo', lang: 'German', signal: controller.signal });
+  controller.abort();
+  setPromptSuggestionsOn(db, false);
+  release();
+  assert.equal(await pending, null);
+  setPromptNextForTests(null);
+});
+
+test('a delayed answer is discarded if the same model id changes endpoint', async () => {
+  kvSet(db, 'helper.model', 'local/model');
+  setPromptSuggestionsOn(db, true);
+  confirmPromptRecipient(db, 'local/model', promptSuggestionSettings(db).recipient.fingerprint);
+  const file = path.join(process.env.DATA_DIR!, 'models', 'agent.json');
+  const saved = fs.readFileSync(file, 'utf8');
+  let release!: () => void;
+  setPromptNextForTests(async () => {
+    await new Promise<void>((resolve) => { release = resolve; });
+    return { text: 'Too late', via: 'Local model', model: 'local/model' };
+  });
+  try {
+    const pending = promptNext(db, { context: 'User: Hallo', lang: 'German' });
+    // Change the recipient while the model is still answering.
+    const config = JSON.parse(saved);
+    config.models[0].baseUrl = 'https://new.example/v1';
+    fs.writeFileSync(file, JSON.stringify(config));
+    release();
+    assert.equal(await pending, null);
+  } finally {
+    fs.writeFileSync(file, saved);
+    setPromptNextForTests(null);
+  }
+});
+
+test('the context is bounded, replies are filtered, and errors remain silent', async () => {
+  const cut = cutContext(['old', 'x'.repeat(100), 'new'], 20);
+  assert.ok(cut.includes('new'), 'the newest message survives the cut');
+  assert.ok(!cut.includes('old'), 'the oldest is dropped');
+  assert.equal(cutContext(['a', '', 'b']).split('\n\n').length, 2, 'an empty message adds no blank line');
+  assert.equal(usable('SILENT'), '', 'the model declining is not a suggestion');
+  assert.equal(usable('I cannot suggest that'), '');
+  assert.equal(usable('```js\ncode\n```'), '');
+  assert.equal(usable('Mach weiter'), 'Mach weiter');
+  assert.equal(usable('"In quotes"'), 'In quotes');
+  kvSet(db, 'helper.model', 'local/model');
+  setPromptSuggestionsOn(db, true);
+  confirmPromptRecipient(db, 'local/model', promptSuggestionSettings(db).recipient.fingerprint);
+  let called = 0;
+  setPromptNextForTests(async () => {
+    called++;
+    throw new Error('provider unavailable');
+  });
+  // A failing model is the box's problem, never the conversation's: nothing is asked of the user, nothing thrown.
+  assert.equal(await promptNext(db, { context: 'User: Hallo', lang: 'German' }), null);
+  assert.equal(called, 1, 'the model was tried once');
+  setPromptNextForTests(null);
+});
+
+test('suggestions are consumed once and expired or dropped suggestions disappear', () => {
+  clearSuggestions();
+  keepSuggestion({ key: 'session:a', text: 'Alt', via: 'Local model', at: Date.now() - 11 * 60_000 });
+  assert.equal(takeSuggestion('session:a'), null);
+  keepSuggestion({ key: 'session:b', text: 'Mach weiter', via: 'Local model', at: Date.now() });
+  assert.equal(takeSuggestion('session:b')?.text, 'Mach weiter');
+  assert.equal(takeSuggestion('session:b'), null);
+  keepSuggestion({ key: 'session:c', text: 'Weg', via: 'Local model', at: Date.now() });
+  dropSuggestion('session:c');
+  assert.equal(takeSuggestion('session:c'), null);
 });
 
 let failed = 0;

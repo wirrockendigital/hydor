@@ -81,7 +81,7 @@ import { registerAway } from './away/index.ts';
 import { arenaOf } from '../shared/arena.ts';
 import { startMatch } from './arena/index.ts';
 import { helper, helperOptions, helperSees, setHelperModel, setHelperModels } from './helper.ts';
-import { promptFallback, promptSuggestionSettings, setPromptFallback, setPromptSuggestionsOn } from './answers/prompt-next.ts';
+import { promptSuggestionSettings, setPromptSuggestionsOn, confirmPromptRecipient, revokePromptConsent } from './answers/prompt-next.ts';
 import { setOneShotAccounts } from './oneshot.ts';
 import { dismissSignIn, initSignIn, markSignedIn, signInNeeds } from './signin.ts';
 import { limitsOf, limitSupport, oomKills, SessionMeter, setLimits, wrapRunner } from './resources.ts';
@@ -2136,9 +2136,16 @@ app.patch('/api/sessions/:key/extra', async (req) => {
 // The suggestion of the user's next message (server/answers/prompt-next.ts): a grey line in an empty box, never sent.
 app.get('/api/prompt-suggestions/settings', async () => promptSuggestionSettings(db));
 app.put('/api/prompt-suggestions/settings', async (req) => {
-  const b = (req.body ?? {}) as { on?: boolean; fallback?: string };
-  if (typeof b.on === 'boolean') setPromptSuggestionsOn(db, b.on);
-  if (typeof b.fallback === 'string') setPromptFallback(db, b.fallback);
+  const b = (req.body ?? {}) as { on?: boolean; confirm?: boolean; model?: string; recipient?: string };
+  if (b.on === true) {
+    if (b.confirm !== true || typeof b.model !== 'string' || typeof b.recipient !== 'string') throw new HttpError(400, 'Confirm the displayed helper model first');
+    confirmPromptRecipient(db, b.model, b.recipient);
+    setPromptSuggestionsOn(db, true);
+  } else if (b.on === false) {
+    setPromptSuggestionsOn(db, false);
+    revokePromptConsent(db);
+    sessions.clearPromptSuggestions();
+  }
   return promptSuggestionSettings(db);
 });
 app.get('/api/sessions/:key/prompt-suggestion', async (req) => ({ suggestion: sessions.promptSuggestionOf(K(req)) }));
@@ -2151,6 +2158,8 @@ app.delete('/api/sessions/:key/prompt-suggestion', async (req) => {
 app.get('/api/helper', async () => helperOptions(db));
 app.put('/api/helper', async (req) => {
   setHelperModel(db, String((req.body as { model?: string } | undefined)?.model ?? 'auto'));
+  revokePromptConsent(db);
+  sessions.clearPromptSuggestions();
   return helperOptions(db);
 });
 // The browser's time zone, so agents and schedules speak in local time.

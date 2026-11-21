@@ -62,9 +62,11 @@ import { recordEnding } from './away/index.ts';
 import { ancestorsOf, isRunningStatus, queueGoesOn, runningBelow, runningChildren, workStatus } from './children/family.ts';
 import { childReplyOf } from '../shared/children.ts';
 import type { NextPrompt } from '../shared/types.ts';
-import { conversationLines, cutContext as cutPromptContext, dropSuggestion, keepSuggestion, promptNext, takeSuggestion } from './answers/prompt-next.ts';
+import { clearSuggestions, conversationLines, cutContext as cutPromptContext, dropSuggestion, keepSuggestion, promptNext, takeSuggestion } from './answers/prompt-next.ts';
 import { userLang } from './language/index.ts';
-import { localHelper } from './helper.ts';
+import { localHelper, helperModelId } from './helper.ts';
+import { capOf } from './budget/spend.ts';
+import { parentOf } from './children/family.ts';
 import { hubDir, wikiMemoryOn, wikiSpaceOfSession } from './wiki/roots.ts';
 import { sessionMemoryOn } from './memory/store.ts';
 import { sessionCaptureEnabled } from './wiki/session/store.ts';
@@ -759,8 +761,16 @@ export class SessionManager extends EventEmitter {
   private endedTurns = new Map<string, number>();
   /** Which suggestion is on its way for each session; a newer turn invalidates the older one. */
   private suggestRuns = new Map<string, number>();
+  private suggestSequence = 0;
   /** What stops the call a session is waiting on: a new turn, a message of your own, or a closed box. */
   private suggestStops = new Map<string, AbortController>();
+
+  /** Invalidate pending and displayed suggestions when their permission or recipient changes. */
+  clearPromptSuggestions() {
+    for (const key of this.suggestStops.keys()) this.dropPromptSuggestion(key);
+    for (const key of this.statuses.keys()) this.emit('suggest', key, null);
+    clearSuggestions();
+  }
   /**
    * "Finished" notices held back because the session was still at work when its turn ended (stillAtWork), by key: when
    * the first turn held ended. Each goes out once that work is over: at the end of the next turn, however short (the
@@ -783,11 +793,14 @@ export class SessionManager extends EventEmitter {
     // A confidential session's words go only to a model on this computer: the local helper when one is picked, else none.
     const local = isConfidential(extra) ? localHelper(this.db) : null;
     if (isConfidential(extra) && !local) return;
+    // Suggestion calls are not yet recorded in session spending. Do not bypass a session or parent cap.
+    const parent = parentOf(this.db, key);
+    if (!localHelper(this.db) && (capOf(this.db, key) != null || (parent && capOf(this.db, parent) != null))) return;
     // A newer turn, a message of your own or a closed box stops the call the session is waiting on.
     this.suggestStops.get(key)?.abort();
     const stop = new AbortController();
     this.suggestStops.set(key, stop);
-    const run = (this.suggestRuns.get(key) ?? 0) + 1;
+    const run = ++this.suggestSequence;
     this.suggestRuns.set(key, run);
     void this.promptContext(key)
       .then(async (c) => {
@@ -795,7 +808,7 @@ export class SessionManager extends EventEmitter {
         if (this.suggestRuns.get(key) !== run) return;
         const lang = userLang(this.db);
         const out = await promptNext(this.db, { context: c.context, lang, model: local ?? c.model, local: !!local, signal: stop.signal });
-        if (!out || this.suggestRuns.get(key) !== run) return;
+        if (!out || this.suggestRuns.get(key) !== run || out.model !== helperModelId(this.db)) return;
         keepSuggestion({ key, text: out.text, via: out.via, at: Date.now() });
         this.emit('suggest', key, { key, text: out.text, via: out.via });
       })

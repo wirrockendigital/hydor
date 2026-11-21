@@ -22,7 +22,7 @@ Você não precisa saber onde fica uma opção: digite o que quer na caixa de bu
 - [**Tamanho do texto**](/settings?s=general&find=Text%20size): Tamanho das mensagens, das páginas da Ajuda e da caixa de digitação neste dispositivo: padrão, grande ou maior.
 - [**Enviar enquanto um agente trabalha**](/settings?s=general&find=Sending%20while%20an%20agent%20works): Enter entra no turno em andamento ou espera ele terminar.
 - [**Sugestões do terminal**](/settings?s=general&find=Terminal%20suggestions): Sugestões em cinza depois do cursor nos terminais.
-- [**Sugerir a próxima mensagem**](/settings?s=general&find=Suggest%20the%20next%20message): Uma linha cinza no campo vazio após uma resposta, aceita com Tab.
+- [**Next message suggestions**](/settings?s=general&find=Next%20message%20suggestions): Optional grey suggestions for your next message after a turn, taken with Tab; off until you turn them on, and a changed model asks again.
 - [**Retomar após limites de uso**](/settings?s=general&find=Resume%20after%20usage%20limits): Continua uma sessão um minuto depois que o limite de um plano é renovado.
 - [**Excluir sessões inativas**](/settings?s=general&find=Delete%20inactive%20sessions): Exclui sessões que ninguém usou por um ano, ou pelo tempo que você escolher; até lá, toda conversa é mantida.
 - [**Limitar cada sessão**](/settings?s=general&find=Limit%20each%20session): O máximo de memória e de processadores que os programas de uma sessão podem usar.

@@ -8,7 +8,7 @@ import { api, post, put } from '../../lib/api';
 import { ago, MOD } from '../../lib/format';
 import { go } from '../../lib/nav';
 import { toast, toastError, useApp, useUI, type Motion, type TextSize } from '../../lib/store';
-import { Button, cx, Throbber, Segmented, Switch } from '../../components/ui';
+import { Button, cx, Throbber, Segmented, Switch, useConfirm } from '../../components/ui';
 import { currentLang, setLang } from '../../i18n';
 import { LOCALE } from '../../i18n/locale';
 import { holdDownloadNote, restartToUpdate, updateLater } from '../../components/UpdateNotice';
@@ -544,34 +544,64 @@ function KeepAwakeSetting() {
   );
 }
 
-/** A suggestion of your next message, grey in an empty box after a turn (server/answers/prompt-next.ts). Kept on the server. */
+/**
+ * The opt-in suggestion of the next chat message (server/answers/prompt-next.ts). Suggestions send a bounded
+ * excerpt of the conversation to the helper model, so they stay off until the user turns them on, and turning
+ * them on records that they agreed to that for the helper model picked now.
+ */
 function PromptSuggestionsSetting() {
-  const [on, setOn] = useState<boolean | null>(null);
+  interface SuggestionState {
+    on: boolean;
+    consent: boolean;
+    recipient: { model: string; label: string; local: boolean; fingerprint: string; provider: string; endpoint: string };
+  }
+  const [state, setState] = useState<SuggestionState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirm, confirmNode] = useConfirm();
   useEffect(() => {
-    api<{ on: boolean }>('/api/prompt-suggestions/settings')
-      .then((r) => setOn(r.on))
-      .catch(() => setOn(false));
+    api<SuggestionState>('/api/prompt-suggestions/settings')
+      .then(setState)
+      // Without an answer the switch stays off: the server decides whether a suggestion is asked for anyway.
+      .catch(() => setState({ on: false, consent: false, recipient: { model: 'auto', label: 'Automatic', local: false, fingerprint: '', provider: '', endpoint: '' } }));
   }, []);
+  const save = async (body: { on?: boolean; confirm?: boolean; model?: string; recipient?: string }) => {
+    setBusy(true);
+    try {
+      setState(await put<SuggestionState>('/api/prompt-suggestions/settings', body));
+    } catch (e) {
+      toastError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const change = async (on: boolean) => {
+    if (!state || busy) return;
+    // Off is always allowed; on asks first, naming the model that would read the conversation.
+    if (!on) return void (await save({ on: false }));
+    const ok = await confirm({
+      title: 'Enable next-message suggestions?',
+      body: `After each completed turn, Hydor sends a limited excerpt of the conversation to your configured helper model: ${state.recipient.label} (${state.recipient.provider}: ${state.recipient.endpoint || 'default endpoint'}). If your helper model is hosted by an external provider, next-message suggestions are not available in confidential chats. For maximum privacy, Hydor recommends using a local helper model. The request may use your model quota or incur provider charges. Suggestions never send a message automatically.`,
+      confirm: 'Enable suggestions',
+    });
+    // Cancelled, closed or dismissed: nothing is stored, so nothing is asked for.
+    if (ok) await save({ on: true, confirm: true, model: state.recipient.model, recipient: state.recipient.fingerprint });
+  };
   return (
-    <Row
-      label="Suggest the next message"
-      hint="A grey line in an empty box after a turn, taken with Tab"
-      info="After a turn the model that answered writes one sentence you might send next. It is shown grey in an empty message box: Tab takes it as text, Escape leaves it. Nothing is sent, and a confidential session gets none."
-      control={
-        on === null ? (
-          <Throbber className="text-fg-3" />
-        ) : (
-          <Switch
-            on={on}
-            label="Suggest the next message"
-            onChange={(v) => {
-              setOn(v);
-              put('/api/prompt-suggestions/settings', { on: v }).catch((e) => (setOn(!v), toastError(e)));
-            }}
-          />
-        )
-      }
-    />
+    <>
+      <Row
+        label="Next message suggestions"
+        hint={state?.recipient.model === 'auto' ? 'Choose a specific helper model in Settings → Models before enabling suggestions.' : state?.on && !state.consent ? 'Paused: the model recipient changed; enable it again to approve the new recipient' : 'Optional grey suggestions after a completed turn; off by default'}
+        info="The configured Helper model receives the last few conversation messages to suggest one next message. Confidential sessions only use a local helper model."
+        control={
+          state ? (
+            <Switch on={state.on && state.consent} disabled={busy || (state.recipient.model === 'auto' && !state.on)} onChange={(v) => void change(v)} label="Next message suggestions" />
+          ) : (
+            <Throbber className="text-fg-3" />
+          )
+        }
+      />
+      {confirmNode}
+    </>
   );
 }
 

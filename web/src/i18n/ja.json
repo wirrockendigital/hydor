@@ -24964,4 +24964,15 @@
   "suggestion next message follow up ghost grey tab compose prompt after turn": "提案 次のメッセージ 続き グレー Tab 入力欄 回答後",
   "The model that writes a suggestion when the one that answered cannot be asked on its own (Claude Code, Codex, another ACP agent)": "回答したモデルを単独で呼び出せないときに提案を書くモデル（Claude Code、Codex、または別の ACP エージェント）",
   "The suggestion's fallback": "提案の代替モデル",
-  "When the session's model cannot suggest": "セッションのモデルが提案できないとき"}
+  "When the session's model cannot suggest": "セッションのモデルが提案できないとき",
+  "After each completed turn, Hydor sends a bounded excerpt of the conversation to {0}. This may use your model quota or incur provider charges. Suggestions are optional and never send a message automatically.": "完了したターンのたびに、Hydor は会話の一部を {0} に送ります。モデルの利用枠を消費したり、プロバイダーから課金されたりすることがあります。提案は任意で、メッセージを自動で送ることはありません。",
+  "Enable next-message suggestions?": "次のメッセージの提案を有効にしますか？",
+  "Enable suggestions": "提案を有効にする",
+  "Next message suggestions": "次のメッセージの提案",
+  "Optional grey suggestions after a completed turn; off by default": "完了したターンの後の任意のグレーの提案。既定ではオフ",
+  "Optional grey suggestions for your next message after a turn, taken with Tab; off until you turn them on, and a changed model asks again": "ターンが終わったあとの次のメッセージのグレーの提案。Tab で入力できます。有効にするまでオフで、モデルが変わると再度確認します",
+  "Paused: the model recipient changed; enable it again to approve the new recipient": "一時停止中: 送信先のモデルが変わりました。新しい送信先を承認するため、もう一度有効にしてください",
+  "suggestion next message follow up ghost grey tab compose prompt after turn off by default opt in consent privacy helper model": "設定した補助モデルが会話の末尾を受け取り、次の提案を書きます。Confidential のセッションではこの端末上のモデルのみを使います。",
+  "The configured Helper model receives the last few conversation messages to suggest one next message. Confidential sessions only use a local helper model.": "提案 次のメッセージ 提案 提案する tab グレー ゴーストテキスト ターン後 既定でオフ 同意 プライバシー 補助モデル モデル",
+  "The model for the app’s small jobs beside your sessions: writing memory notes, checking steps in Auto mode, second opinions, reading a page for one question. It also writes the optional next-message suggestions (Settings → General → Next message suggestions), which are off until you turn them on.": "設定した補助モデル"
+}

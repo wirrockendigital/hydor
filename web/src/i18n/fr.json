@@ -24965,4 +24965,15 @@
   "suggestion next message follow up ghost grey tab compose prompt after turn": "suggestion message suivant suivi gris tab champ après réponse",
   "The model that writes a suggestion when the one that answered cannot be asked on its own (Claude Code, Codex, another ACP agent)": "Le modèle qui écrit une suggestion lorsque celui qui a répondu ne peut pas être interrogé seul (Claude Code, Codex ou un autre agent ACP)",
   "The suggestion's fallback": "Recours pour les suggestions",
-  "When the session's model cannot suggest": "Quand le modèle de la session ne peut pas suggérer"}
+  "When the session's model cannot suggest": "Quand le modèle de la session ne peut pas suggérer",
+  "After each completed turn, Hydor sends a bounded excerpt of the conversation to {0}. This may use your model quota or incur provider charges. Suggestions are optional and never send a message automatically.": "Après chaque tour terminé, Hydor envoie un extrait limité de la conversation à {0}. Cela peut consommer le quota de votre modèle ou entraîner des frais chez le fournisseur. Les suggestions sont facultatives et n’envoient jamais de message toutes seules.",
+  "Enable next-message suggestions?": "Activer les suggestions pour le prochain message ?",
+  "Enable suggestions": "Activer les suggestions",
+  "Next message suggestions": "Suggestions pour le prochain message",
+  "Optional grey suggestions after a completed turn; off by default": "Suggestions grises facultatives après un tour terminé ; désactivées par défaut",
+  "Optional grey suggestions for your next message after a turn, taken with Tab; off until you turn them on, and a changed model asks again": "Suggestions grises facultatives pour votre prochain message après un tour, reprises avec Tab ; désactivées jusqu’à ce que vous les activiez, et un autre modèle redemande",
+  "Paused: the model recipient changed; enable it again to approve the new recipient": "En pause : le modèle destinataire a changé ; activez-les à nouveau pour approuver le nouveau destinataire",
+  "suggestion next message follow up ghost grey tab compose prompt after turn off by default opt in consent privacy helper model": "Le modèle auxiliaire configuré reçoit les derniers messages de la conversation pour proposer la suite. Les sessions confidentielles utilisent seulement un modèle sur cet ordinateur.",
+  "The configured Helper model receives the last few conversation messages to suggest one next message. Confidential sessions only use a local helper model.": "suggestion prochain message suggestions proposer tab gris texte fantôme après tour désactivé par défaut consentement confidentialité modèle auxiliaire modèle",
+  "The model for the app’s small jobs beside your sessions: writing memory notes, checking steps in Auto mode, second opinions, reading a page for one question. It also writes the optional next-message suggestions (Settings → General → Next message suggestions), which are off until you turn them on.": "le modèle auxiliaire configuré"
+}

@@ -595,12 +595,14 @@ An app travels as one file: a .json, or a .hydor-app (a zip of its app.json, dat
 - `GET /api/app-settings` — whether sessions stopped by a plan's usage limit continue by themselves a minute after it resets, whether a session whose account runs out of usage moves to another of its agent's accounts with usage left and carries on (Claude Code, Codex and Grok Build), and whether Claude Code sessions carry on billed to an Anthropic API key (API credit) when every Claude account is at its limit (autoResume and apiCredit are off by default, autoSwitch is on). Returns: `{ autoResume: boolean, autoSwitch: boolean, apiCredit: boolean }`.
 - `PUT /api/app-settings` — turns any of them on or off. Body: `{ autoResume?: boolean, autoSwitch?: boolean, apiCredit?: boolean }` (each left as is when absent). Returns: `{ autoResume: boolean, autoSwitch: boolean, apiCredit: boolean }`.
 
-## Suggestions of the next message (Settings → General → Suggest the next message, Settings → Models → Helper model)
+## Suggestions of the next message (Settings → General → Next message suggestions, Settings → Models → Helper model)
 
-A grey line the composer shows in an empty box after a turn: one sentence the user might write next, by the session's own model (a Custom one) or the helper model when that cannot be asked alone. It is never sent, never stored, and a confidential session gets none.
+A grey line the composer shows in an empty box after a turn: one sentence the user might write next, written by the selected helper model. Select a specific helper model first; Automatic is not supported for suggestions. It is never sent as a message, and a confidential session gets one only from a model on that computer.
 
-- `GET /api/prompt-suggestions/settings` — whether suggestions are on, the fallback when the session's model cannot be asked, and the models the fallback may be. Returns: `{ on: boolean, fallback: "auto"|<Custom model id>, options: [{ value, label, detail?, vision?: boolean }] }`.
-- `PUT /api/prompt-suggestions/settings` — turns suggestions on or off, or picks the fallback. Body: `{ on?: boolean, fallback?: "auto" | one of options[].value }` (each left as is when absent; 400 for a model that is not one of Custom's). Returns: as GET.
+Suggestions are off until the user turns them on, and turning them on records that they agreed to send the conversation to the helper model. A change of helper model asks for that agreement again; until it is given, no suggestion is asked for.
+
+- `GET /api/prompt-suggestions/settings` — whether suggestions are on, whether the current helper model has that agreement, and which model would write them. Returns: `{ on: boolean, consent: boolean, recipient: { model: string, label: string, local: boolean } }`.
+- `PUT /api/prompt-suggestions/settings` — turns suggestions on or off. To enable, send `{ on: true, confirm: true, model: "<displayed helper model id>", recipient: "<displayed recipient fingerprint>" }`; the server rejects a changed or automatic recipient. To turn off, send `{ on: false }`. Returns: as GET.
 - `GET /api/sessions/:key/prompt-suggestion` — the suggestion for that session's box when it is fresh, else `null`: it is kept only in memory and only for its turn. Returns: `{ suggestion: { text: string, via: string } | null }`.
 - `DELETE /api/sessions/:key/prompt-suggestion` — drops it (Escape in the box, a message of your own). Returns: `{ ok: true }`.
 

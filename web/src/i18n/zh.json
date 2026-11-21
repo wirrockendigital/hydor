@@ -26821,4 +26821,15 @@
   "suggestion next message follow up ghost grey tab compose prompt after turn": "建议 下一条消息 后续 灰色 Tab 输入框 提示 回答之后",
   "The model that writes a suggestion when the one that answered cannot be asked on its own (Claude Code, Codex, another ACP agent)": "当回答的模型无法单独询问时，撰写建议的模型（Claude Code、Codex 或其他 ACP 代理）",
   "The suggestion's fallback": "建议的备用模型",
-  "When the session's model cannot suggest": "当会话的模型无法建议时"}
+  "When the session's model cannot suggest": "当会话的模型无法建议时",
+"After each completed turn, Hydor sends a bounded excerpt of the conversation to {0}. This may use your model quota or incur provider charges. Suggestions are optional and never send a message automatically.":"每个已完成的轮次之后，Hydor 会把对话的一段有限摘录发送给 {0}。这可能会消耗你的模型额度或产生提供商费用。建议是可选的，绝不会自行发送消息。",
+"Enable next-message suggestions?":"启用下一条消息建议？",
+"Enable suggestions":"启用建议",
+"Next message suggestions":"下一条消息建议",
+"Optional grey suggestions after a completed turn; off by default":"轮次完成后的可选灰色建议；默认关闭",
+"Optional grey suggestions for your next message after a turn, taken with Tab; off until you turn them on, and a changed model asks again":"轮次结束后的下一条消息灰色可选建议，可用 Tab 采纳；在你启用之前一直关闭，更换模型会再次询问",
+"Paused: the model recipient changed; enable it again to approve the new recipient":"已暂停：目标模型已更改；请再次启用以确认新的接收方",
+"suggestion next message follow up ghost grey tab compose prompt after turn off by default opt in consent privacy helper model":"建议 下一条消息 建议 提议 tab 灰色 幽灵文本 轮次后 默认关闭 同意 隐私 辅助模型 模型",
+"The configured Helper model receives the last few conversation messages to suggest one next message. Confidential sessions only use a local helper model.":"配置的辅助模型会收到对话中最近的几条消息，用来建议下一步。保密会话只使用这台计算机上的模型。",
+"The model for the app’s small jobs beside your sessions: writing memory notes, checking steps in Auto mode, second opinions, reading a page for one question. It also writes the optional next-message suggestions (Settings → General → Next message suggestions), which are off until you turn them on.":"用于会话之外的零散小任务的模型：写 Memory 笔记、检查 Auto 中的步骤、给出第二意见、为一个问题读取页面。它也会写下一条消息的可选建议（Settings → General → 下一条消息建议），在你启用之前一直关闭。"
+}

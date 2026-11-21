@@ -26824,4 +26824,15 @@
   "suggestion next message follow up ghost grey tab compose prompt after turn": "πρόταση επόμενου μηνύματος συνέχεια γκρι tab πεδίο σύνταξης μετά απάντηση",
   "The model that writes a suggestion when the one that answered cannot be asked on its own (Claude Code, Codex, another ACP agent)": "Το μοντέλο που γράφει μια πρόταση όταν το μοντέλο που απάντησε δεν μπορεί να ερωτηθεί μόνο του (Claude Code, Codex, άλλος ACP agent)",
   "The suggestion's fallback": "Εναλλακτικό μοντέλο για προτάσεις",
-  "When the session's model cannot suggest": "Όταν το μοντέλο της συνεδρίας δεν μπορεί να προτείνει"}
+  "When the session's model cannot suggest": "Όταν το μοντέλο της συνεδρίας δεν μπορεί να προτείνει",
+"After each completed turn, Hydor sends a bounded excerpt of the conversation to {0}. This may use your model quota or incur provider charges. Suggestions are optional and never send a message automatically.":"Μετά από κάθε ολοκληρωμένο γύρο, το Hydor στέλνει ένα περιορισμένο απόσπασμα της συνομιλίας στο {0}. Αυτό μπορεί να καταναλώσει το όριο του μοντέλου σας ή να δημιουργήσει χρεώσεις στον πάροχο. Οι προτάσεις είναι προαιρετικές και δεν στέλνουν ποτέ μήνυμα από μόνες τους.",
+"Enable next-message suggestions?":"Να ενεργοποιηθούν οι προτάσεις για το επόμενο μήνυμα;",
+"Enable suggestions":"Ενεργοποίηση προτάσεων",
+"Next message suggestions":"Προτάσεις για το επόμενο μήνυμα",
+"Optional grey suggestions after a completed turn; off by default":"Προαιρετικές γκρίζες προτάσεις μετά από ολοκληρωμένο γύρο· ανενεργές από προεπιλογή",
+"Optional grey suggestions for your next message after a turn, taken with Tab; off until you turn them on, and a changed model asks again":"Προαιρετικές γκρίζες προτάσεις για το επόμενο μήνυμά σας μετά από έναν γύρο, που γίνονται δεκτές με Tab· ανενεργές μέχρι να τις ενεργοποιήσετε, και άλλο μοντέλο ρωτά ξανά",
+"Paused: the model recipient changed; enable it again to approve the new recipient":"Σε παύση: το μοντέλο παραλήπτης άλλαξε· ενεργοποιήστε ξανά τις προτάσεις για να εγκρίνετε τον νέο παραλήπτη",
+"suggestion next message follow up ghost grey tab compose prompt after turn off by default opt in consent privacy helper model":"πρόταση επόμενο μήνυμα προτάσεις πρότεινε tab γκρίζο κείμενο φάντασμα μετά γύρο ανενεργό προεπιλογή συγκατάθεση απόρρητο βοηθητικό μοντέλο μοντέλο",
+"The configured Helper model receives the last few conversation messages to suggest one next message. Confidential sessions only use a local helper model.":"Το ρυθμισμένο βοηθητικό μοντέλο λαμβάνει τα τελευταία μηνύματα της συνομιλίας για να προτείνει το επόμενο. Οι εμπιστευτικές συνεδρίες χρησιμοποιούν μόνο μοντέλο σε αυτόν τον υπολογιστή.",
+"The model for the app’s small jobs beside your sessions: writing memory notes, checking steps in Auto mode, second opinions, reading a page for one question. It also writes the optional next-message suggestions (Settings → General → Προτάσεις για το επόμενο μήνυμα), which are off until you turn them on.":"Το μοντέλο για τις μικρές εργασίες δίπλα στις συνεδρίες σας: γράφει σημειώσεις Memory, ελέγχει βήματα στο Auto, δίνει δεύτερη γνώμη, διαβάζει μια σελίδα για μια ερώτηση. Γράφει επίσης τις προαιρετικές προτάσεις για το επόμενο μήνυμα (Settings → General → Προτάσεις για το επόμενο μήνυμα), που είναι ανενεργές μέχρι να τις ενεργοποιήσετε."
+}

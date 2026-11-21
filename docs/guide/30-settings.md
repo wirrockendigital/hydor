@@ -22,7 +22,7 @@ You don’t have to know where an option lives: type what you want in the search
 - [**Text size**](/settings?s=general&find=Text%20size): How big messages, Help pages and the box you type in are on this device: default, large or larger.
 - [**Sending while an agent works**](/settings?s=general&find=Sending%20while%20an%20agent%20works): Enter joins the running turn, or waits for it to end.
 - [**Terminal suggestions**](/settings?s=general&find=Terminal%20suggestions): Grey completions after the cursor in terminals.
-- [**Suggest the next message**](/settings?s=general&find=Suggest%20the%20next%20message): A grey line in an empty box after a turn, taken with Tab.
+- [**Next message suggestions**](/settings?s=general&find=Next%20message%20suggestions): Optional grey suggestions for your next message after a turn, taken with Tab; off until you turn them on, and a changed model asks again.
 - [**Resume after usage limits**](/settings?s=general&find=Resume%20after%20usage%20limits): Continues a session a minute after a plan’s limit resets.
 - [**Delete inactive sessions**](/settings?s=general&find=Delete%20inactive%20sessions): Deletes sessions nobody used for a year, or as long as you choose; until then every conversation is kept.
 - [**Limit each session**](/settings?s=general&find=Limit%20each%20session): The most memory and processors one session’s programs may use.
