@@ -213,7 +213,8 @@ function titleOfRow(r: Row, sub: { title?: string } | null): string {
 
 function phaseOf(s: SessionSummary): Phase {
   const l = s.live;
-  if (l && l.status !== 'exited') return l.status === 'error' ? 'error' : l.status === 'waiting' ? 'waiting' : l.status === 'working' ? 'working' : 'idle';
+  // A session still starting is at work, not idle: read as idle, a new session looked finished before its first turn began.
+  if (l && l.status !== 'exited') return l.status === 'error' ? 'error' : l.status === 'waiting' ? 'waiting' : l.status === 'working' || l.status === 'starting' ? 'working' : 'idle';
   if (s.external) return s.external.status;
   return 'off';
 }
